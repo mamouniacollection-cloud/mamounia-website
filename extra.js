@@ -185,17 +185,10 @@ var MM = {
     }
   }
 
-  /* ---------- cart: masjid give-back and order requests ---------- */
+  /* ---------- cart: order requests ---------- */
   var sum = $(".cart .summary");
   if (sum) {
-    var mk = "mamounia-masjid";
-    var saved = ""; try { saved = localStorage.getItem(mk) || ""; } catch(e){}
-    var gb = document.createElement("div"); gb.className = "mm-give";
-    gb.innerHTML = '<label class="opt-label" for="mm-masjid">Support your masjid</label><select id="mm-masjid" class="field"><option value="">Choose a masjid</option>' +
-      MM.MASJIDS.map(function(m){ return '<option' + (m === saved ? " selected" : "") + '>' + esc(m) + '</option>'; }).join("") + '<option value="Other">Another masjid</option></select>' +
-      '<p class="muted small">We give ' + esc(MM.GIVE_BACK) + ' of every order to the masjid you choose.</p>';
-    var btn = sum.querySelector("[data-checkout]"); sum.insertBefore(gb, btn);
-    gb.querySelector("select").addEventListener("change", function(e){ try { localStorage.setItem(mk, e.target.value); } catch(x){} });
+    var btn = sum.querySelector("[data-checkout]");
     var of = document.createElement("form"); of.className = "mm-order"; of.hidden = true;
     of.innerHTML = '<p class="small">Leave your details. We confirm stock and send you a secure payment link, usually the same day.</p>' +
       '<input class="field" name="name" required placeholder="Full name" aria-label="Full name"><input class="field" name="phone" type="tel" required placeholder="Phone or WhatsApp" aria-label="Phone"><input class="field" name="email" type="email" placeholder="Email (optional)" aria-label="Email">' +
@@ -203,13 +196,14 @@ var MM = {
       '<button class="btn" type="submit">Send my order</button><p class="mm-err" role="alert"></p>';
     sum.insertBefore(of, btn.nextSibling);
     btn.addEventListener("click", function(e){ e.stopImmediatePropagation(); of.hidden = false; btn.hidden = true; var m = $("[data-checkout-msg]"); if (m) m.textContent = ""; of.querySelector("input").focus(); }, true);
+    // coming from the side bag's Checkout button: open the order form straight away
+    if (/[?&]checkout/.test(location.search)) setTimeout(function(){ if (!btn.disabled) { btn.click(); of.scrollIntoView({block: "center", behavior: "smooth"}); } }, 300);
     of.addEventListener("submit", function(e){
       e.preventDefault();
       var cart = []; try { cart = JSON.parse(localStorage.getItem("mamounia-cart-" + store)) || []; } catch(x){ cart = window.__cart || []; }
       if (!cart.length) return;
       var d = formData(of);
       d.items = cart.map(function(it){ var q = findAny(it.id) || {name: it.id}; return it.qty + "× " + q.name + " (size " + it.size + (it.color ? ", " + it.color : "") + ")"; }).join("; ");
-      d.masjid = gb.querySelector("select").value || "";
       of.querySelector("button").disabled = true;
       send("order", d).then(function(r){
         if (!r.ok) { of.querySelector(".mm-err").textContent = r.error || "Couldn't send. Try again."; of.querySelector("button").disabled = false; return; }

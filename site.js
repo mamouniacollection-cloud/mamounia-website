@@ -24,7 +24,7 @@ var MM_API = "https://mamounia-admin.onrender.com";   // your admin address, e.g
 
   function boot(){
     ["store.js", "extra.js", "i18n.js"].forEach(function(f){
-      var s = document.createElement("script"); s.src = "" + f; s.async = false; document.body.appendChild(s);
+      var s = document.createElement("script"); s.src = "" + f + (window.MM_VER ? "?v=" + window.MM_VER : ""); s.async = false; document.body.appendChild(s);
     });
   }
   function eachText(root, fn){
@@ -39,7 +39,8 @@ var MM_API = "https://mamounia-admin.onrender.com";   // your admin address, e.g
       if (Array.isArray(list) && list.length) PRODUCTS[k] = list.map(function(p){
         return {id: p.id, name: p.name || "", cat: p.cat, season: p.season || "all", fabric: p.fabric || "", note: p.note || "",
                 price: p.price === "" || p.price == null ? null : +p.price, colors: p.colors || [], photos: p.photos || [],
-                hidden: !!p.hidden, badge: p.badge || "", soldOut: !!p.soldOut, sizesLeft: p.sizesLeft || null, origin: p.origin || ""};
+                hidden: !!p.hidden, badge: p.badge || "", soldOut: !!p.soldOut, sizesLeft: p.sizesLeft || null, origin: p.origin || "",
+                variants: (p.variants || []).filter(function(v){ return v && v.name; }).map(function(v){ return {name: v.name, hex: v.hex || "", photos: v.photos || []}; })};
       });
     });
     window.MM_SETTINGS = c.settings || {};
@@ -86,14 +87,44 @@ var MM_API = "https://mamounia-admin.onrender.com";   // your admin address, e.g
   }
   function go(c){ if (started) return; started = true; try { apply(c); } catch(e){ try { console.error(e); } catch(x){} } boot(); }
 
-  if (!API) { go(null); return; }
+  // ?mmcheck at the end of any page address shows whether the site can reach the admin
+  var check = /[?&]mmcheck/.test(location.search), t0 = Date.now();
+  function report(msg, ok){
+    if (!check) return;
+    var d = document.createElement("div");
+    d.style.cssText = "position:fixed;left:12px;right:12px;bottom:12px;z-index:99999;padding:14px 16px;border-radius:10px;font:14px/1.45 system-ui,sans-serif;color:#fff;background:" + (ok ? "#2f6b3a" : "#9b2c2c");
+    d.innerHTML = "<b>Admin connection</b><br>Address in site.js: <code>" + (API || "(empty)") + "</code><br>" + msg;
+    document.body.appendChild(d);
+  }
+  function countPhotos(c){
+    var n = 0; ["men", "women"].forEach(function(k){
+      ((c.products || {})[k] || []).forEach(function(p){ n += (p.photos || []).length; (p.variants || []).forEach(function(v){ n += (v.photos || []).length; }); });
+      n += Object.keys((c.images || {})[k] || {}).length;
+    }); return n;
+  }
+
+  if (!API) { report("No admin address is set, so the site uses its built-in content.", false); go(null); return; }
   var cache = null; try { cache = JSON.parse(localStorage.getItem(CK)); } catch(e){}
-  var fresh = cache && Date.now() - cache.at < 10 * 60e3;
-  if (fresh) go(cache.data);                       // fast path: recent content, refresh quietly
-  var timer = setTimeout(function(){ go(cache && cache.data); }, 2500);   // don't keep visitors waiting
-  fetch(API + "/api/public/site").then(function(r){ if (!r.ok) throw 0; return r.json(); }).then(function(c){
+  var fresh = cache && Date.now() - cache.at < 10 * 60e3, used = null;
+  if (fresh) { used = cache.data; go(cache.data); }        // fast path: recent content, refresh quietly
+  // The admin on Render's free plan falls asleep and can take up to a minute to wake up.
+  // Don't keep visitors staring at a blank page: show what we have, then switch to the real content when it arrives.
+  var timer = setTimeout(function(){ if (!started) { used = cache && cache.data; go(used); } }, cache ? 2500 : 6000);
+  fetch(API + "/api/public/site", {cache: "no-store"}).then(function(r){ if (!r.ok) throw new Error("status " + r.status); return r.json(); }).then(function(c){
     clearTimeout(timer);
+    var json = JSON.stringify(c);
     try { localStorage.setItem(CK, JSON.stringify({at: Date.now(), data: c})); } catch(e){}
-    go(c);
-  }).catch(function(){ clearTimeout(timer); go(cache && cache.data); });
+    report("Reached the admin in " + ((Date.now() - t0) / 1000).toFixed(1) + " s. Photos found: " + countPhotos(c) + ".", true);
+    if (!started) { used = c; go(c); return; }
+    // the page started with older (or no) content: swap in the new content once
+    if (JSON.stringify(used || null) !== json) {
+      var k = "mm-swapped-" + location.pathname;
+      try { if (sessionStorage.getItem(k)) return; sessionStorage.setItem(k, "1"); } catch(e){ return; }
+      if (window.scrollY < 200 && Date.now() - t0 < 90e3) location.reload();
+    }
+  }).catch(function(e){
+    clearTimeout(timer);
+    report("Could not reach the admin (" + (e && e.message || "network error") + "). Check that this address opens your admin, and that the admin is deployed.", false);
+    go(cache && cache.data);
+  });
 })();
