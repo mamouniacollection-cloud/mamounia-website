@@ -110,20 +110,24 @@
     if (title && params.get("cat") && cats[params.get("cat")]) title.textContent = cats[params.get("cat")] + "s";
     if (title && params.get("season")) title.textContent = SEASONS[params.get("season")] + " Collection";
     if (title && params.get("fabric") && FABRICS[params.get("fabric")]) title.textContent = FABRICS[params.get("fabric")].name;
+    var q = (params.get("q") || "").trim().toLowerCase();
+    if (title && q) title.textContent = "Results for “" + params.get("q").trim() + "”";
+    window.mmMatch = function(p, qq){ var hay = [p.name, cats[p.cat], (FABRICS[p.fabric] || {}).name, SEASONS[p.season], (p.colors || []).join(" "), p.note, p.badge].join(" ").toLowerCase();
+      return qq.split(/\s+/).filter(Boolean).every(function(w){ return hay.indexOf(w.replace(/s$/, "")) > -1; }); };
     function apply(){
       var pick = function(k){ return Array.prototype.map.call(form.querySelectorAll('input[name="' + k + '"]:checked'), function(i){ return i.value; }); };
       var c = pick("cat"), s = pick("season"), t = pick("fabric");
       var list = items.filter(function(p){
         return (!c.length || c.indexOf(p.cat) > -1) &&
                (!s.length || s.indexOf(p.season) > -1 || p.season === "all") &&
-               (!t.length || t.indexOf(p.fabric) > -1);
+               (!t.length || t.indexOf(p.fabric) > -1) && (!q || mmMatch(p, q));
       });
       grid.innerHTML = list.length ? list.map(card).join("") : '<div class="empty">No pieces match these filters yet. Try removing one.</div>';
       document.querySelector("[data-count]").textContent = list.length + (list.length === 1 ? " piece" : " pieces");
     }
     form.addEventListener("change", apply);
     var clr = document.querySelector("[data-clear]");
-    if (clr) clr.addEventListener("click", function(){ form.querySelectorAll("input").forEach(function(i){ i.checked = false; }); if (title) title.textContent = "Shop All"; apply(); });
+    if (clr) clr.addEventListener("click", function(){ form.querySelectorAll("input").forEach(function(i){ i.checked = false; }); q = ""; if (title) title.textContent = "Shop All"; apply(); });
     apply();
   }
 
@@ -262,9 +266,8 @@
       '<div class="nl-card" role="dialog" aria-modal="true" aria-labelledby="nl-title">' +
         '<button class="nl-x" type="button" aria-label="Close">×</button>' +
         '<div class="nl-art">' + (art ? art.outerHTML.replace("nl-src", "").replace(/id="([\w-]+)"/, 'id="nlP"').replace(/url\(#[\w-]+\)/, "url(#nlP)") : "") +
-          '<img class="nl-logo" src="' + store + '-logo-light.png" alt="">' +
-          '<div class="nl-off"><b>' + OFFER.percent + '</b><span>off your first order</span></div></div>' +
-        '<div class="nl-body"><span class="eyebrow">Mamounia newsletter</span><h2 id="nl-title">' + w.title + '</h2><p class="muted">' + w.text + '</p>' +
+          '<div class="nl-off"><span class="nl-arch"></span><b>' + OFFER.percent + '</b><span>off your first order</span><img class="nl-ros" src="' + store + '-rosette-light.png" alt=""></div></div>' +
+        '<div class="nl-body"><img class="nl-brand" src="' + store + '-logo.png" alt="Mamounia"><span class="eyebrow">Mamounia newsletter</span><h2 id="nl-title">' + w.title + '</h2><p class="muted">' + w.text + '</p>' +
           '<form data-nl-form' + (joined ? ' hidden' : '') + '><label for="nl-email" class="sr">Email address</label><input id="nl-email" class="field" type="email" required placeholder="Your email address"><button class="btn" type="submit">Get my ' + OFFER.percent + ' off</button>' +
             '<button class="nl-skip" type="button" data-nl-close>No thanks, take me to the store</button></form>' +
           '<div class="nl-code" data-nl-done' + (joined ? '' : ' hidden') + '><p>You are on the list. Use this code at checkout:</p><div class="code">' + OFFER.code + '</div><button class="btn" type="button" data-nl-close>Start shopping</button></div>' +

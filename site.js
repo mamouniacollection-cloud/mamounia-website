@@ -14,7 +14,7 @@
 /* Mamounia site loader. It gets the content you set in the admin's Website design tab
    (photos, products, prices, text and settings), puts it on the page, then starts the store.
    If the admin can't be reached, the site uses the last content it saw, or the built-in defaults. */
-var MM_API = "";   // your admin address, e.g. "https://mamounia-admin.onrender.com" (no slash at the end)
+var MM_API = "https://mamounia-admin.onrender.com";   // your admin address, e.g. "https://mamounia-admin.onrender.com" (no slash at the end)
 
 (function(){
   var store = document.body.getAttribute("data-store");

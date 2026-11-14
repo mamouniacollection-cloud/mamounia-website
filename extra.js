@@ -317,6 +317,66 @@ var MM = {
     wire(gf, "gift", function(d){ var x = findAny(d.item); d.item = x ? x.name : d.item; delete d.gstore; }, "gift-done");
   }
 
+  /* ---------- search: a panel under the header with live results from both stores ---------- */
+  var sBtn = document.querySelector('.icon-btn[aria-label="Search"]');
+  if (sBtn) {
+    var panel = document.createElement("div"); panel.className = "mm-search"; panel.hidden = true;
+    panel.setAttribute("role", "dialog"); panel.setAttribute("aria-label", "Search");
+    panel.innerHTML = '<div class="wrap"><form class="mm-s-form" role="search"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>' +
+      '<input type="search" name="q" autocomplete="off" placeholder="Search djellabas, kaftans, colors, fabrics…" aria-label="Search"><button type="button" class="mm-s-x" aria-label="Close search">×</button></form>' +
+      '<div class="mm-s-hints"><span>Try:</span>' + (store === "men" ? ["Djellaba", "Gandoura", "Melifa", "Summer", "White"] : ["Kaftan", "Abaya", "Kimono", "Crepe", "Winter"]).map(function(h){ return '<button type="button">' + h + '</button>'; }).join("") + '</div>' +
+      '<div class="mm-s-res" aria-live="polite"></div></div>';
+    document.querySelector(".site-header").appendChild(panel);
+    var inp = panel.querySelector("input"), res = panel.querySelector(".mm-s-res");
+    var CN = {men: "Men's", women: "Women's"};
+    function match(p, qq){ var cs = CATS[storeOf(p.id)]; var hay = [p.name, cs[p.cat], (FABRICS[p.fabric] || {}).name, SEASONS[p.season], (p.colors || []).join(" "), p.note, p.badge].join(" ").toLowerCase();
+      return qq.split(/\s+/).filter(Boolean).every(function(w){ return hay.indexOf(w.replace(/s$/, "")) > -1; }); }
+    function runSearch(){
+      var qq = inp.value.trim().toLowerCase(); if (!qq) { res.innerHTML = ""; return; }
+      var mine = PRODUCTS[store].filter(function(p){ return !p.hidden && match(p, qq); });
+      var other = store === "men" ? "women" : "men", theirs = PRODUCTS[other].filter(function(p){ return !p.hidden && match(p, qq); });
+      var row = function(p){ var ph = p.photos && p.photos[0] ? '<img src="' + MM_IMG(p.photos[0]) + '" alt="">' : '<span class="mm-s-ph"></span>';
+        return '<a class="mm-s-item" href="product.html?id=' + p.id + '">' + ph + '<span><b>' + esc(p.name) + '</b><em>' + esc(CATS[storeOf(p.id)][p.cat]) + (p.price != null ? ' · $' + p.price : '') + '</em></span></a>'; };
+      res.innerHTML = (mine.length ? '<div class="mm-s-grid">' + mine.slice(0, 6).map(row).join("") + '</div><a class="mm-s-all" href="shop.html?q=' + encodeURIComponent(inp.value.trim()) + '">' + (mine.length === 1 ? 'See it in the shop' : 'See all ' + mine.length + ' results') + ' →</a>'
+        : '<p class="muted">Nothing in the ' + CN[store] + ' store for “' + esc(inp.value.trim()) + '”.</p>') +
+        (theirs.length ? '<a class="mm-s-other" href="' + (/(men|women)-[a-z]+\.html/.test(location.pathname) ? other + '-shop.html?q=' : '../' + other + '/shop.html?q=') + encodeURIComponent(inp.value.trim()) + '">' + theirs.length + ' result' + (theirs.length > 1 ? "s" : "") + ' in the ' + CN[other] + ' store →</a>' : "");
+    }
+    function openS(){ panel.hidden = false; requestAnimationFrame(function(){ panel.classList.add("open"); }); inp.focus(); }
+    function closeS(){ panel.classList.remove("open"); setTimeout(function(){ panel.hidden = true; }, 250); }
+    sBtn.addEventListener("click", function(e){ e.preventDefault(); panel.hidden ? openS() : closeS(); });
+    panel.querySelector(".mm-s-x").addEventListener("click", closeS);
+    inp.addEventListener("input", runSearch);
+    panel.querySelector("form").addEventListener("submit", function(e){ e.preventDefault(); if (inp.value.trim()) location.href = (document.querySelector(".mm-s-all") || {}).href || "shop.html?q=" + encodeURIComponent(inp.value.trim()); });
+    panel.querySelectorAll(".mm-s-hints button").forEach(function(b){ b.addEventListener("click", function(){ inp.value = b.textContent; runSearch(); inp.focus(); }); });
+    document.addEventListener("keydown", function(e){ if (e.key === "Escape" && !panel.hidden) closeS(); if (e.key === "/" && panel.hidden && !/INPUT|TEXTAREA|SELECT/.test((document.activeElement || {}).tagName || "")) { e.preventDefault(); openS(); } });
+    document.addEventListener("click", function(e){ if (!panel.hidden && !panel.contains(e.target) && !sBtn.contains(e.target)) closeS(); });
+    var q0 = params.get("q"); if (q0 && document.querySelector("[data-grid]")) inp.value = q0;
+  }
+
+  /* ---------- look and feel: section ornaments, scroll reveal, cart count pop ---------- */
+  document.querySelectorAll(".section-head h2, .row-head h2").forEach(function(h){
+    if (h.parentNode.querySelector(".mm-rule")) return;
+    var img = document.createElement("img"); img.className = "mm-rule"; img.alt = ""; img.setAttribute("aria-hidden", "true");
+    var dark = h.closest(".dark, .nl-band, .line-card.dark");
+    img.src = "" + store + "-rule" + (dark ? "-light" : "") + ".png";
+    h.parentNode.insertBefore(img, h.nextSibling);
+  });
+  if ("IntersectionObserver" in window && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    var targets = document.querySelectorAll(".section-head, .row-head, .gallery-grid > *, .cats-row > *, .occ-grid > *, .grid > .card, .mm-way, .lines > *, .seasons > *, .trust-item, .mm-ev, .line-card");
+    if (targets.length) {
+      document.documentElement.classList.add("mm-rv");
+      var io = new IntersectionObserver(function(es){ es.forEach(function(e){ if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } }); }, {rootMargin: "0px 0px -8% 0px", threshold: 0.08});
+      targets.forEach(function(t, i){
+        var r = t.getBoundingClientRect();
+        if (r.top < innerHeight) { t.classList.add("rv", "in"); return; }   // already on screen: no hiding
+        t.classList.add("rv"); var sib = t.parentNode ? Array.prototype.indexOf.call(t.parentNode.children, t) : 0;
+        t.style.transitionDelay = Math.min(sib, 5) * 0.08 + "s"; io.observe(t);
+      });
+    }
+  }
+  var cc = document.querySelector(".cart-count"), last = cc ? cc.textContent : "";
+  if (cc) new MutationObserver(function(){ if (cc.textContent !== last) { last = cc.textContent; cc.classList.remove("pop"); void cc.offsetWidth; cc.classList.add("pop"); } }).observe(cc, {childList: true, characterData: true, subtree: true});
+
   /* ---------- 9. Piece tag page ---------- */
   var pc = $("[data-piece]");
   if (pc) {
