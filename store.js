@@ -154,22 +154,54 @@
     window.mmMatch = function(p, qq){ var hay = [p.name, cats[p.cat], (FABRICS[p.fabric] || {}).name, SEASONS[p.season], (p.colors || []).concat((p.variants || []).map(function(v){ return v.name; })).join(" "), p.note, p.badge].join(" ").toLowerCase();
       return qq.split(/\s+/).filter(Boolean).every(function(w){ return hay.indexOf(w.replace(/s$/, "")) > -1; }); };
     // hide garments with no pieces
-    form.querySelectorAll('input[name="cat"]:not([data-all])').forEach(function(i){ if (!items.some(function(p){ return p.cat === i.value; })) i.closest(".door").hidden = true; });
-    form.querySelectorAll('input[name="fabric"]').forEach(function(i){ if (!items.some(function(p){ return p.fabric === i.value; })) i.closest(".pill").hidden = true; });
+    form.querySelectorAll('input[name="cat"]:not([data-all])').forEach(function(i){ if (!items.some(function(p){ return p.cat === i.value; })) i.closest("label").hidden = true; });
+    form.querySelectorAll('input[name="fabric"]').forEach(function(i){ if (!items.some(function(p){ return p.fabric === i.value; })) i.closest("label").hidden = true; });
     // Color menu, built from the colors you added in the admin
     var allColors = {};
     items.forEach(function(p){ (vlist(p) || []).forEach(function(v){ var k = v.name.toLowerCase(); if (!allColors[k]) allColors[k] = v; }); });
     var ck = Object.keys(allColors), cslot = form.querySelector("[data-color-slot]");
     if (ck.length && cslot) {
-      cslot.outerHTML = '<details class="dd" data-dd><summary>Color <i data-dd-n></i></summary><div class="dd-pop dd-sw">' + ck.map(function(k){ var v = allColors[k];
-        return '<label class="swf" title="' + esc(v.name) + '"><input type="checkbox" name="color" value="' + esc(k) + '"><span style="--c:' + esc(v.hex || "#ccc") + '"></span><em>' + esc(v.name) + '</em></label>'; }).join("") + '</div></details>';
+      cslot.outerHTML = '<fieldset><legend>Color</legend><div class="sw-filter">' + ck.map(function(k){ var v = allColors[k];
+        return '<label class="swf" title="' + esc(v.name) + '"><input type="checkbox" name="color" value="' + esc(k) + '"><span style="--c:' + esc(v.hex || "#ccc") + '"></span><em>' + esc(v.name) + '</em></label>'; }).join("") + '</div></fieldset>';
       var pc = (params.get("color") || "").toLowerCase(); if (pc) form.querySelectorAll('input[name="color"]').forEach(function(i){ i.checked = i.value === pc; });
     }
     // one menu open at a time; click outside closes
     var dds = form.querySelectorAll("[data-dd]");
     dds.forEach(function(d){ d.addEventListener("toggle", function(){ if (d.open) dds.forEach(function(o){ if (o !== d) o.open = false; }); }); });
     document.addEventListener("click", function(e){ dds.forEach(function(d){ if (d.open && !d.contains(e.target)) d.open = false; }); });
-    var STORY = '<aside class="coll-story"><img src="' + store + '-rosette-light.png" alt=""><span class="eyebrow">Mamounia</span><p>Cut and sewn in Morocco. Not sure of your size? Tell us your height and we check it before we ship.</p><a href="custom.html">Or have one made to your measurements →</a></aside>';
+    // Notes between the pieces: the wording and the place change with what you're looking at
+    var NOTE = {
+      all: ["Cut and sewn in Morocco. Not sure of your size? Tell us your height and we check it before we ship.", "Or have one made to your measurements →", "custom.html"],
+      djellaba: ["A djellaba should fall just above the ankle. Send us your height and we'll tell you which size does.", "Need another length? Have one made →", "custom.html"],
+      gandoura: ["Made loose on purpose, for hot days and for sujood. Tell us your height and we confirm the size before it ships.", "Or have one made to measure →", "custom.html"],
+      jabador: ["Dressing the whole family for Eid? Pick one color and we match the set for everyone.", "See family sets →", "family.html"],
+      jacket: ["The hood and trim of a djellaba, cut short to wear over a thobe or with jeans.", "Want it in another fabric? →", "custom.html"],
+      kaftan: ["Wearing it to a wedding or a henna night? Try it on first at our next pop-up.", "Find our next pop-up →", "events.html"],
+      kimono: ["Two pieces, one easy set. Tell us your height and we check the length before it ships.", "Or have one made to measure →", "custom.html"],
+      abaya: ["Want a different sleeve or length? Our artisans can make it to your measurements.", "Design your own →", "custom.html"],
+      summer: ["Light weaves for Texas heat that still feel right at the masjid.", "Shop the winter pieces too →", "shop.html?season=winter"],
+      winter: ["Heavier weaves for cold mornings and walks to Fajr.", "Or have one made in your fabric →", "custom.html"],
+      fabric: ["Love this fabric? Our artisans can sew it into any garment, to your measurements.", "Design your own →", "custom.html"],
+      gift: ["Giving it as a gift? We add a handwritten note in Arabic, English or Urdu.", "Make it a gift →", "gift.html"],
+      popup: ["See it in person before you buy: we bring the collection to pop-ups across DFW.", "Find us →", "events.html"]
+    };
+    function noteHTML(n, look){
+      var img = look === "light" ? store + "-rosette.png" : store + "-rosette-light.png", inner = '<span class="eyebrow">Mamounia</span><p>' + esc(n[0]) + '</p><a href="' + n[2] + '">' + esc(n[1]) + '</a>';
+      return '<aside class="coll-story ' + look + '"><img src="' + img + '" alt="">' + (look.indexOf("wide") > -1 ? '<div>' + inner + '</div>' : inner) + '</aside>';
+    }
+    function hash(k){ var h = 7; for (var i = 0; i < k.length; i++) h = (h * 31 + k.charCodeAt(i)) % 9973; return h; }
+    function placeNotes(cards, key, hkey){
+      var n = cards.length; if (n < 3) return cards;
+      var h = hash(hkey || key), main = NOTE[key] || (key.indexOf("fab-") === 0 ? NOTE.fabric : NOTE.all);
+      var spots = [2, 4, 3, 5, 1], looks = ["dark", "light", "dark wide", "light wide"];
+      var at = Math.min(spots[h % spots.length], n), out = cards.slice();
+      out.splice(at, 0, noteHTML(main, looks[h % looks.length]));
+      if (n >= 8) {  // a second, different note further down
+        var second = (h % 2) ? NOTE.gift : NOTE.popup, at2 = Math.min(at + 5 + (h % 3), out.length);
+        out.splice(at2, 0, noteHTML(second, looks[(h + 1) % looks.length]));
+      }
+      return out;
+    }
     var first = true;
     function apply(){
       var pick = function(k){ return Array.prototype.map.call(form.querySelectorAll('input[name="' + k + '"]:checked'), function(i){ return i.value; }).filter(Boolean); };
@@ -183,7 +215,8 @@
         vs.forEach(function(v){ if (!cl.length || cl.indexOf(v.name.toLowerCase()) > -1) cards.push(card(p, v)); });
       });
       var n = cards.length;
-      if (n >= 7) cards.splice(5, 0, STORY);
+      var nkey = c.length === 1 ? c[0] : s.length === 1 ? s[0] : t.length === 1 ? "fab-" + t[0] : "all";
+      cards = placeNotes(cards, nkey, nkey + (c.length === 1 && s.length === 1 ? "-" + s[0] : "") + (t.length ? "-" + t.join("") : ""));
       grid.innerHTML = n ? cards.join("") : '<div class="empty coll-empty"><h3>Nothing here yet</h3><p>No pieces match these choices. Try another fabric or season.</p></div>';
       grid.querySelectorAll(".card, .coll-story").forEach(function(el, i){ el.classList.add("rv", "in"); el.style.setProperty("--i", Math.min(i, 10)); });
       grid.classList.remove("enter"); void grid.offsetWidth; grid.classList.add("enter");
@@ -199,7 +232,10 @@
       if (q) { head = "Results for “" + params.get("q").trim() + "”"; }
       if (title && title.textContent !== head) { title.textContent = head; if (!first) { title.classList.remove("swap"); void title.offsetWidth; title.classList.add("swap"); } }
       if (eyebrow) eyebrow.textContent = eb; if (intro) intro.textContent = it;
-      document.querySelectorAll(".cw-layer").forEach(function(l){ l.classList.toggle("on", l.getAttribute("data-layer") === layer); });
+      var hasImg = false;
+      document.querySelectorAll(".cw-layer").forEach(function(l){ var on = l.getAttribute("data-layer") === layer; l.classList.toggle("on", on); if (on && l.classList.contains("mm-has-img")) hasImg = true; });
+      var ch = document.querySelector(".coll-head"); if (ch) ch.classList.toggle("has-img", hasImg);
+      var rl = document.querySelector("[data-rule]"); if (rl) rl.src = rl.src.replace(/-rule(-light)?\.png/, hasImg ? "-rule-light.png" : "-rule.png");
       var any = c.length || s.length || t.length || cl.length || q; document.querySelector("[data-clear]").hidden = !any;
       if (!first) { var u = new URLSearchParams(); if (c.length === 1) u.set("cat", c[0]); if (s.length === 1) u.set("season", s[0]); if (t.length === 1) u.set("fabric", t[0]); if (cl.length === 1) u.set("color", cl[0]); if (q) u.set("q", params.get("q"));
         try { history.replaceState(null, "", location.pathname + (u.toString() ? "?" + u : "")); } catch(e){} }

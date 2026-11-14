@@ -356,6 +356,24 @@ var MM = {
       hdr.classList.toggle("over", !hdr.classList.contains("compact"));
     };
     window.addEventListener("scroll", place, {passive: true}); window.addEventListener("resize", place); place();
+    // Hovering the header keeps it clear. It turns white only while the Shop menu or search is open,
+    // or while the pointer is on the bag (and while the side bag is open).
+    var bagHover = false, nb = hdr.querySelector(".nav-btn"), bagA = hdr.querySelector('a.icon-btn[href$="cart.html"]');
+    var sync = function(){
+      var on = (nb && nb.getAttribute("aria-expanded") === "true") || !!hdr.querySelector(".mm-search.open") || bagHover || document.body.classList.contains("bag-open");
+      hdr.classList.toggle("solid", on);
+    };
+    if (bagA) {
+      bagA.addEventListener("mouseenter", function(){ bagHover = true; sync(); });
+      bagA.addEventListener("mouseleave", function(){ bagHover = false; sync(); });
+      bagA.addEventListener("focus", function(){ bagHover = true; sync(); });
+      bagA.addEventListener("blur", function(){ bagHover = false; sync(); });
+    }
+    var mo = new MutationObserver(sync);
+    if (nb) mo.observe(nb, {attributes: true, attributeFilter: ["aria-expanded"]});
+    mo.observe(document.body, {attributes: true, attributeFilter: ["class"]});
+    mo.observe(hdr, {subtree: true, attributes: true, attributeFilter: ["class"]});
+    sync();
   }
 
   var swl = document.querySelector(".switch-store");
