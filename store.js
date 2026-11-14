@@ -266,7 +266,7 @@
       '<div class="nl-card" role="dialog" aria-modal="true" aria-labelledby="nl-title">' +
         '<button class="nl-x" type="button" aria-label="Close">×</button>' +
         '<div class="nl-art">' + (art ? art.outerHTML.replace("nl-src", "").replace(/id="([\w-]+)"/, 'id="nlP"').replace(/url\(#[\w-]+\)/, "url(#nlP)") : "") +
-          '<div class="nl-off"><span class="nl-arch"></span><b>' + OFFER.percent + '</b><span>off your first order</span><img class="nl-ros" src="' + store + '-rosette-light.png" alt=""></div></div>' +
+          '<div class="nl-door"><img class="nl-ros" src="' + store + '-rosette.png" alt=""><b>' + OFFER.percent + '</b><span>off your<br>first order</span></div></div>' +
         '<div class="nl-body"><img class="nl-brand" src="' + store + '-logo.png" alt="Mamounia"><span class="eyebrow">Mamounia newsletter</span><h2 id="nl-title">' + w.title + '</h2><p class="muted">' + w.text + '</p>' +
           '<form data-nl-form' + (joined ? ' hidden' : '') + '><label for="nl-email" class="sr">Email address</label><input id="nl-email" class="field" type="email" required placeholder="Your email address"><button class="btn" type="submit">Get my ' + OFFER.percent + ' off</button>' +
             '<button class="nl-skip" type="button" data-nl-close>No thanks, take me to the store</button></form>' +

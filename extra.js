@@ -31,15 +31,10 @@ var MM = {
   ],
   // Notes for the person who prays in it. Edit per category.
   PRAY: {
-    men: {djellaba: ["Hooded, for cool walks to Fajr", "Loose cut for ruku' and sujood"],
-          gandoura: ["Short, wide sleeves: wudu without rolling up", "Light and loose for Jumu'ah in the heat"],
-          jabador: ["Two pieces: tunic and serwal pants", "Loose cut for ruku' and sujood"],
-          jacket: ["Layers over a thobe or jabador on cold mornings"]},
-    women: {djellaba: ["Hooded and full length", "Loose cut that stays modest in sujood"],
-            kaftan: ["Full length, loose cut", "Made for Eid, weddings and henna nights"],
-            kimono: ["Two pieces: top and pants", "Easy to pray in at events"],
-            abaya: ["Full length and loose", "Pairs with any hijab"],
-            jabador: ["Two pieces: tunic and pants"]}
+    men: {djellaba: ["Hood for Fajr", "Room for sujood"], gandoura: ["Wudu-friendly sleeves", "Cool for Jumu'ah"],
+          jabador: ["Tunic and serwal", "Room for sujood"], jacket: ["Layers over a thobe"]},
+    women: {djellaba: ["Hooded, full length", "Modest in sujood"], kaftan: ["Full length", "For Eid and weddings"],
+            kimono: ["Top and pants", "Easy to pray in"], abaya: ["Full length, loose", "Fits any hijab"], jabador: ["Tunic and pants"]}
   },
   // When each fabric is comfortable in DFW (months 1-12) and its comfortable temperature range (°F).
   COMFORT: {
@@ -150,23 +145,25 @@ var MM = {
   var pp = $("[data-product]");
   if (pp) {
     var p = (function(){ var id = params.get("id"); for (var i = 0; i < items.length; i++) if (items[i].id === id) return items[i]; return items[0]; })();
-    var box = document.createElement("div"); box.className = "mm-extras";
     var notes = (MM.PRAY[store] || {})[p.cat] || [];
     var c = MM.COMFORT[p.fabric];
-    var h = "";
-    if (notes.length) h += '<div class="mm-pray"><span class="opt-label">Made for prayer</span><ul>' + notes.map(function(n){ return "<li>" + esc(n) + "</li>"; }).join("") + "</ul></div>";
-    if (c) {
-      var now = new Date().getMonth() + 1;
-      h += '<div class="mm-comfort"><span class="opt-label">Comfortable in DFW</span><div class="mm-months">' + MONTHS.map(function(m, i){
-        return '<span class="' + (c.m.indexOf(i + 1) > -1 ? "on" : "") + (i + 1 === now ? " now" : "") + '" title="' + m + '">' + m.charAt(0) + '</span>'; }).join("") +
-        '</div><p class="mm-wx-line" data-wx-line hidden></p></div>';
+    function span(ms){ // turn a list of months into "Mar–Oct" style ranges
+      var on = function(m){ return ms.indexOf(((m - 1 + 12) % 12) + 1) > -1; }, start = null, out = [];
+      for (var k = 1; k <= 12; k++) if (on(k) && !on(k - 1)) start = k;
+      if (ms.length === 12) return "All year";
+      for (var m = 1; m <= 12; m++) if (on(m) && !on(m - 1)) { var e = m; while (on(e + 1) && e - m < 11) e++; out.push(MONTHS[m - 1] + (e !== m ? "–" + MONTHS[(e - 1) % 12] : "")); }
+      return out.join(", ");
     }
-    h += '<div class="mm-links"><a href="events.html?item=' + p.id + '">Reserve it and try it on at our next pop-up →</a><a href="gift.html?item=' + p.id + '">Send it as an Eid gift →</a><a href="family.html?item=' + p.id + '">Match it with the family →</a></div>';
-    box.innerHTML = h;
+    var h = '<div class="mm-good">';
+    if (notes.length) h += '<div class="mm-chips" aria-label="Made for prayer">' + notes.map(function(n){ return '<span class="mm-chip">' + esc(n) + '</span>'; }).join("") + '</div>';
+    if (c) h += '<div class="mm-season-line"><span class="mm-bar" aria-hidden="true">' + MONTHS.map(function(m, i){ return '<i class="' + (c.m.indexOf(i + 1) > -1 ? "on" : "") + (i === new Date().getMonth() ? " now" : "") + '"></i>'; }).join("") + '</span>' +
+      '<span class="mm-sl-txt">Best in DFW: <b>' + span(c.m) + '</b><span data-wx-line hidden></span></span></div>';
+    h += '<div class="mm-acts"><a href="events.html?item=' + p.id + '">Try it on</a><a href="gift.html?item=' + p.id + '">Gift it</a><a href="family.html?item=' + p.id + '">Family set</a></div></div>';
+    var box = document.createElement("div"); box.className = "mm-extras"; box.innerHTML = h;
     var add = pp.querySelector("[data-add]"); add.parentNode.insertBefore(box, add.nextSibling);
     if (c) weather().then(function(tf){
       if (tf == null) return; var el = pp.querySelector("[data-wx-line]");
-      el.textContent = "Right now in " + MM.CITY.name + ": " + tf + "°F. " + (tf < c.lo ? "A bit cold for this fabric today; layer up." : tf > c.hi ? "Warm for this fabric today." : "A good day to wear it.");
+      el.textContent = " · " + tf + "°F in " + MM.CITY.name + " now" + (tf < c.lo ? ", layer up" : tf > c.hi ? ", a warm day for it" : ", a good day for it");
       el.hidden = false;
     });
     // Size finder, added to the size guide
@@ -352,6 +349,9 @@ var MM = {
     document.addEventListener("click", function(e){ if (!panel.hidden && !panel.contains(e.target) && !sBtn.contains(e.target)) closeS(); });
     var q0 = params.get("q"); if (q0 && document.querySelector("[data-grid]")) inp.value = q0;
   }
+
+  var swl = document.querySelector(".switch-store");
+  if (swl) swl.style.setProperty("--other-ros", "url('" + "" + (store === "men" ? "women" : "men") + "-rosette-light.png')");
 
   /* ---------- look and feel: section ornaments, scroll reveal, cart count pop ---------- */
   document.querySelectorAll(".section-head h2, .row-head h2").forEach(function(h){
