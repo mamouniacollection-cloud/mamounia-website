@@ -740,3 +740,7 @@ body.fit-open{overflow:hidden}
 }
 @media (max-width:520px){.st-pr-grid{grid-template-columns:1fr}}
 .st-hero h1{max-width:19ch}
+
+/* Two-color circles: the main color, with the trim color as a crescent on the right */
+.mm-swatch span{background:var(--c)}
+.sw[style*="--c2"],.swp[style*="--c2"],.swf span[style*="--c2"],.mm-swatch span[style*="--c2"]{background:radial-gradient(circle at 8% 50%,var(--c) 0 57%,var(--c2) calc(57% + .6px))}

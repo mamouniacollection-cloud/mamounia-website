@@ -3,13 +3,16 @@
   if (!store) return;
   var items = PRODUCTS[store].filter(function(p){ return !p.hidden; }), cats = CATS[store];
   // Colors: each product can have colors, each color its own photos (set in the admin)
+  // A color circle: one color, or two when the piece has a trim color (the name follows the main color)
+  function swStyle(v){ v = v || {}; var ok = function(h){ return /^#[0-9a-f]{3,8}$/i.test(h || ""); }; return "--c:" + (ok(v.hex) ? v.hex : "#ccc") + (ok(v.hex2) ? ";--c2:" + v.hex2 : ""); }
+  window.mmSwStyle = swStyle;
   function vlist(p){ return p.variants && p.variants.length ? p.variants : null; }
   function vfind(p, name){ var vs = vlist(p); if (!vs) return null; name = String(name || "").toLowerCase(); for (var i = 0; i < vs.length; i++) if (vs[i].name.toLowerCase() === name) return vs[i]; return vs[0]; }
   function vph(p, v){ return v && v.photos && v.photos.length ? v.photos : (p.photos || []); }
   function photo(p, i, v){ var list = vph(p, v === undefined ? (vlist(p) || [])[0] : v), id = list[i || 0]; return id ? MM_IMG(id) : null; }
   function swatches(p, cur){
     var vs = vlist(p); if (!vs) return "";
-    return '<span class="sw-row" aria-label="Colors">' + vs.map(function(v, i){ return '<span class="sw' + ((cur ? v === cur : i === 0) ? " on" : "") + '" data-sw="' + i + '" title="' + esc(v.name) + '" style="--c:' + esc(v.hex || "#ccc") + '"></span>'; }).join("") + (vs.length > 1 ? '<span class="sw-n">' + vs.length + ' colors</span>' : '<span class="sw-n">' + esc(vs[0].name) + '</span>') + '</span>';
+    return '<span class="sw-row" aria-label="Colors">' + vs.map(function(v, i){ return '<span class="sw' + ((cur ? v === cur : i === 0) ? " on" : "") + '" data-sw="' + i + '" title="' + esc(v.name) + '" style="' + swStyle(v) + '"></span>'; }).join("") + (vs.length > 1 ? '<span class="sw-n">' + vs.length + ' colors</span>' : '<span class="sw-n">' + esc(vs[0].name) + '</span>') + '</span>';
   }
   window.mmVariant = {list: vlist, find: vfind, photos: vph};
   function badge(p){ return p.soldOut ? '<span class="badge sold">Sold out</span>' : p.badge ? '<span class="badge hot">' + esc(p.badge) + '</span>' : (p.fabric && FABRICS[p.fabric] ? '<span class="badge ready">' + FABRICS[p.fabric].name + '</span>' : ''); }
@@ -163,7 +166,7 @@
     var ck = Object.keys(allColors), cslot = form.querySelector("[data-color-slot]");
     if (ck.length && cslot) {
       cslot.outerHTML = '<fieldset><legend>Color</legend><div class="sw-filter">' + ck.map(function(k){ var v = allColors[k];
-        return '<label class="swf" title="' + esc(v.name) + '"><input type="checkbox" name="color" value="' + esc(k) + '"><span style="--c:' + esc(v.hex || "#ccc") + '"></span><em>' + esc(v.name) + '</em></label>'; }).join("") + '</div></fieldset>';
+        return '<label class="swf" title="' + esc(v.name) + '"><input type="checkbox" name="color" value="' + esc(k) + '"><span style="' + swStyle(v) + '"></span><em>' + esc(v.name) + '</em></label>'; }).join("") + '</div></fieldset>';
       var pc = (params.get("color") || "").toLowerCase(); if (pc) form.querySelectorAll('input[name="color"]').forEach(function(i){ i.checked = i.value === pc; });
     }
     // one menu open at a time; click outside closes
@@ -192,7 +195,7 @@
       ps.forEach(function(p){
         var vs = vlist(p); nCards += vs ? vs.length : 1; if (p.price != null) prices.push(p.price);
         if (!vs) { var a0 = photo(p, 0); if (a0 && !first) first = [a0, photo(p, 1)]; return; }
-        vs.forEach(function(v){ var k = v.name.toLowerCase(); if (seen[k]) return; seen[k] = 1; var a = photo(p, 0, v); sw.push({name: v.name, hex: v.hex || "#ccc", a: a, b: photo(p, 1, v)}); if (a && !first) first = [a, photo(p, 1, v)]; });
+        vs.forEach(function(v){ var k = v.name.toLowerCase(); if (seen[k]) return; seen[k] = 1; var a = photo(p, 0, v); sw.push({name: v.name, hex: v.hex || "#ccc", hex2: v.hex2 || "", a: a, b: photo(p, 1, v)}); if (a && !first) first = [a, photo(p, 1, v)]; });
       });
       var one = ps.length === 1 && nCards <= 1;
       var href = one ? "product.html?id=" + ps[0].id : "shop.html?cat=" + cat + "&fabric=" + f + (season ? "&season=" + season : "");
@@ -201,7 +204,7 @@
         '<div class="img">' + (first ? '<img class="pimg" src="' + first[0] + '" alt="' + esc(name) + '" loading="lazy">' + (first[1] ? '<img class="pimg alt" src="' + first[1] + '" alt="" loading="lazy">' : '') : '<div class="ph">Photo · ' + esc(name) + '</div>') + '</div>' +
         '<span class="kind">' + (sw.length ? sw.length + (sw.length === 1 ? " color" : " colors") : nCards + (nCards === 1 ? " piece" : " pieces")) + '</span>' +
         '<h3>' + esc(name) + '</h3><span class="price">' + (many ? "From " : "") + money(min) + '</span>' +
-        (sw.length ? '<span class="sw-row" aria-label="Colors">' + sw.map(function(x, i){ return '<span class="sw' + (i === 0 ? " on" : "") + '" data-sub-a="' + esc(x.a || "") + '" data-sub-b="' + esc(x.b || "") + '" title="' + esc(x.name) + '" style="--c:' + esc(x.hex) + '"></span>'; }).join("") + '</span>' : '') +
+        (sw.length ? '<span class="sw-row" aria-label="Colors">' + sw.map(function(x, i){ return '<span class="sw' + (i === 0 ? " on" : "") + '" data-sub-a="' + esc(x.a || "") + '" data-sub-b="' + esc(x.b || "") + '" title="' + esc(x.name) + '" style="' + swStyle(x) + '"></span>'; }).join("") + '</span>' : '') +
         '<span class="sub-go">' + (one ? "View the piece" : sw.length ? "See all colors" : "See all pieces") + ' <span aria-hidden="true">→</span></span></a>';
     }
     function subShow(sw){
@@ -338,7 +341,7 @@
     var vsP = vlist(p);
     if (vsP) {
       colBox.innerHTML = '<span class="opt-label">Color: <b data-cname>' + esc(curV.name) + '</b></span><div class="sw-pick" role="radiogroup" aria-label="Color">' +
-        vsP.map(function(v, i){ return '<button type="button" role="radio" class="swp' + (v === curV ? " on" : "") + '" aria-checked="' + (v === curV) + '" data-i="' + i + '" title="' + esc(v.name) + '" style="--c:' + esc(v.hex || "#ccc") + '"><span class="sr">' + esc(v.name) + '</span></button>'; }).join("") + '</div>';
+        vsP.map(function(v, i){ return '<button type="button" role="radio" class="swp' + (v === curV ? " on" : "") + '" aria-checked="' + (v === curV) + '" data-i="' + i + '" title="' + esc(v.name) + '" style="' + swStyle(v) + '"><span class="sr">' + esc(v.name) + '</span></button>'; }).join("") + '</div>';
       colBox.addEventListener("click", function(e){
         var b = e.target.closest(".swp"); if (!b) return;
         curV = vsP[+b.getAttribute("data-i")];
@@ -541,7 +544,7 @@
       '<button type="button" class="bag-x" data-qx aria-label="Close"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>' +
       '<div class="bag-body qv-body"><div class="qv-main" data-qmain></div><div class="qv-thumbs" data-qthumbs></div>' +
       '<div class="qv-price">' + money(p.price) + '</div>' +
-      (vs ? '<div class="qv-opt"><span class="opt-label">Color: <b data-qcn></b></span><div class="sw-pick">' + vs.map(function(v, i){ return '<button type="button" class="swp" data-qc="' + i + '" title="' + esc(v.name) + '" style="--c:' + esc(v.hex || "#ccc") + '"><span class="sr">' + esc(v.name) + '</span></button>'; }).join("") + '</div></div>' : '') +
+      (vs ? '<div class="qv-opt"><span class="opt-label">Color: <b data-qcn></b></span><div class="sw-pick">' + vs.map(function(v, i){ return '<button type="button" class="swp" data-qc="' + i + '" title="' + esc(v.name) + '" style="' + swStyle(v) + '"><span class="sr">' + esc(v.name) + '</span></button>'; }).join("") + '</div></div>' : '') +
       '<div class="qv-opt"><span class="opt-label">Size</span><div class="sizes" role="group" aria-label="Size">' + QSIZES.map(function(z){ var gone = p.sizesLeft && p.sizesLeft[z] != null && p.sizesLeft[z] <= 0; return '<button type="button" aria-pressed="false" data-qs="' + z + '"' + (gone ? ' disabled title="Sold out"' : '') + '>' + z + '</button>'; }).join("") + '</div><p class="qv-msg" role="alert" data-qmsg></p></div></div>' +
       '<div class="bag-foot"><button type="button" class="btn bag-go" data-qadd' + (p.soldOut ? ' disabled' : '') + '>' + (p.soldOut ? 'Sold out' : 'Add to bag') + '</button><a class="bag-view" data-qfull href="#">View full details</a></div>';
     function paint(){

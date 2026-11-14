@@ -40,7 +40,7 @@ var MM_API = "https://mamounia-admin.onrender.com";   // your admin address, e.g
         return {id: p.id, name: p.name || "", cat: p.cat, season: p.season || "all", fabric: p.fabric || "", note: p.note || "",
                 price: p.price === "" || p.price == null ? null : +p.price, colors: p.colors || [], photos: p.photos || [],
                 hidden: !!p.hidden, badge: p.badge || "", soldOut: !!p.soldOut, sizesLeft: p.sizesLeft || null, origin: p.origin || "",
-                variants: (p.variants || []).filter(function(v){ return v && v.name; }).map(function(v){ return {name: v.name, hex: v.hex || "", photos: v.photos || []}; })};
+                variants: (p.variants || []).filter(function(v){ return v && v.name; }).map(function(v){ return {name: v.name, hex: v.hex || "", hex2: v.hex2 || "", photos: v.photos || []}; })};
       });
     });
     window.MM_SETTINGS = c.settings || {};

@@ -325,7 +325,7 @@ var MM = {
     var fallback = [["White", "#F7F5EF"], ["Cream", "#EFE3C8"], ["Sand", "#D8C3A0"], ["Sea green", "#8FC3B5"], ["Emerald", "#0E4A36"], ["Navy", "#1F2F5A"], ["Burgundy", "#7A2234"], ["Black", "#1A1A1A"]];
     // the colors we really have: every color added to a product in the admin, men and women together
     var stock = [], seenC = {};
-    ["men", "women"].forEach(function(st){ PRODUCTS[st].forEach(function(p){ if (p.hidden) return; (p.variants || []).forEach(function(v){ var k = v.name.toLowerCase(); if (!seenC[k]) { seenC[k] = 1; stock.push([v.name, v.hex || "#ccc"]); } }); }); });
+    ["men", "women"].forEach(function(st){ PRODUCTS[st].forEach(function(p){ if (p.hidden) return; (p.variants || []).forEach(function(v){ var k = v.name.toLowerCase(); if (!seenC[k]) { seenC[k] = 1; stock.push([v.name, v.hex || "#ccc", v.hex2 || ""]); } }); }); });
     var hasStock = stock.length > 0, colors = hasStock ? stock : fallback;
     var has = function(p, name){ return (p.variants || []).some(function(v){ return v.name.toLowerCase() === String(name).toLowerCase(); }); };
     var first = params.get("item"), rows = $("[data-members]", fam), form = $("form", fam);
@@ -371,7 +371,7 @@ var MM = {
       $("[data-fc-name]", fam).textContent = m ? famColor() : "";
       Array.prototype.forEach.call(rows.children, function(r){ fillPieces(r); });
     }
-    $("[data-colors]", fam).innerHTML = colors.map(function(c, i){ return '<label class="mm-swatch"><input type="radio" name="color" value="' + esc(c[0]) + '"' + (i === 0 ? " checked" : "") + '><span style="background:' + esc(c[1]) + '"></span><em>' + esc(c[0]) + '</em></label>'; }).join("");
+    $("[data-colors]", fam).innerHTML = colors.map(function(c, i){ return '<label class="mm-swatch"><input type="radio" name="color" value="' + esc(c[0]) + '"' + (i === 0 ? " checked" : "") + '><span style="' + (window.mmSwStyle ? mmSwStyle({hex: c[1], hex2: c[2]}) : "--c:" + c[1]) + '"></span><em>' + esc(c[0]) + '</em></label>'; }).join("");
     $("[data-fc-note]", fam).textContent = hasStock ? "These are the colors we have in stock right now, across the men's and women's stores." : "Pick the color you have in mind and we will tell you which pieces we have in it.";
     // coming from a product page: start on that piece and one of its colors
     var fp = first && findAny(first);
