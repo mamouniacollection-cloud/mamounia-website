@@ -152,37 +152,105 @@ var MM = {
       for (var m = 1; m <= 12; m++) if (on(m) && !on(m - 1)) { var e = m; while (on(e + 1) && e - m < 11) e++; out.push(MONTHS[m - 1] + (e !== m ? "–" + MONTHS[(e - 1) % 12] : "")); }
       return out.join(", ");
     }
-    var h = '<div class="mm-good">';
-    if (notes.length) h += '<div class="mm-chips" aria-label="Made for prayer">' + notes.map(function(n){ return '<span class="mm-chip">' + esc(n) + '</span>'; }).join("") + '</div>';
-    if (c) h += '<div class="mm-season-line"><span class="mm-bar" aria-hidden="true">' + MONTHS.map(function(m, i){ return '<i class="' + (c.m.indexOf(i + 1) > -1 ? "on" : "") + (i === new Date().getMonth() ? " now" : "") + '"></i>'; }).join("") + '</span>' +
-      '<span class="mm-sl-txt">Best in DFW: <b>' + span(c.m) + '</b><span data-wx-line hidden></span></span></div>';
-    h += '<div class="mm-acts"><a href="events.html?item=' + p.id + '">Try it on</a><a href="gift.html?item=' + p.id + '">Gift it</a><a href="family.html?item=' + p.id + '">Family set</a></div></div>';
-    var box = document.createElement("div"); box.className = "mm-extras"; box.innerHTML = h;
+    // Tags at the top, next to the fabric: each kind has its own color
+    var kindOf = function(n){ return /fajr|sujood|wudu|jumu|pray|hijab/i.test(n) ? "pray" : /eid|wedding|henna/i.test(n) ? "occ" : "cut"; };
+    var tags = [];
+    if (p.fabric && FABRICS[p.fabric]) tags.push(["fab", FABRICS[p.fabric].name]);
+    tags.push([p.season === "summer" ? "sum" : p.season === "winter" ? "win" : "alls", p.season === "summer" ? "Summer · light" : p.season === "winter" ? "Winter · warm" : "All season"]);
+    notes.forEach(function(n){ tags.push([kindOf(n), n]); });
+    var top = document.createElement("div"); top.className = "mm-top";
+    top.innerHTML = '<div class="mm-tags" aria-label="About this piece">' + tags.map(function(t, i){ return '<span class="mm-tag t-' + t[0] + '" style="--i:' + i + '">' + esc(t[1]) + '</span>'; }).join("") + '</div>' +
+      (c ? '<div class="mm-season-line"><span class="mm-bar" aria-hidden="true">' + MONTHS.map(function(m, i){ return '<i class="' + (c.m.indexOf(i + 1) > -1 ? "on" : "") + (i === new Date().getMonth() ? " now" : "") + '"></i>'; }).join("") + '</span>' +
+      '<span class="mm-sl-txt">Best in DFW: <b>' + span(c.m) + '</b><span data-wx-line hidden></span></span></div>' : '');
+    var bdg = pp.querySelector('[data-p="badge"]');
+    if (bdg) { if (bdg.classList.contains("ready")) bdg.hidden = true; bdg.parentNode.insertBefore(top, bdg.nextSibling); }
+    else pp.querySelector(".info").insertBefore(top, pp.querySelector(".info").firstChild);
+    var box = document.createElement("div"); box.className = "mm-extras";
+    box.innerHTML = '<div class="mm-good"><div class="mm-acts"><a href="events.html?item=' + p.id + '">Try it on</a><a href="gift.html?item=' + p.id + '">Gift it</a><a href="family.html?item=' + p.id + '">Family set</a></div></div>';
     var add = pp.querySelector("[data-add]"); add.parentNode.insertBefore(box, add.nextSibling);
     if (c) weather().then(function(tf){
       if (tf == null) return; var el = pp.querySelector("[data-wx-line]");
       el.textContent = " · " + tf + "°F in " + MM.CITY.name + " now" + (tf < c.lo ? ", layer up" : tf > c.hi ? ", a warm day for it" : ", a good day for it");
       el.hidden = false;
     });
-    // Size finder, added to the size guide
-    var guide = pp.querySelector(".acc");
-    if (guide) {
-      var sf = document.createElement("details"); sf.className = "acc mm-finder"; sf.open = false;
-      sf.innerHTML = '<summary>Find my size</summary><div><form class="mm-fit-form"><label class="lbl">Height<span class="mm-hw"><input class="field" name="ft" type="number" min="4" max="7" placeholder="ft" aria-label="Feet"><input class="field" name="in" type="number" min="0" max="11" placeholder="in" aria-label="Inches"></span></label>' +
-        '<label class="lbl">Weight (lb)<input class="field" name="lb" type="number" min="60" max="400" placeholder="lb"></label><button class="btn" type="submit">Suggest my size</button></form><p class="mm-fit-out" role="status"></p>' +
-        '<p class="muted small">This guide starts from height and gets more accurate as customers tell us how their piece fit.</p></div>';
-      guide.parentNode.insertBefore(sf, guide);
-      sf.querySelector("form").addEventListener("submit", function(e){
-        e.preventDefault(); var f = e.target;
-        var inches = (+f.ft.value || 0) * 12 + (+f.in.value || 0), lb = +f.lb.value || 0, out = sf.querySelector(".mm-fit-out");
-        if (!inches) { out.textContent = "Enter your height."; return; }
-        var chart = MM.FIT[store], idx = 0;
-        chart.forEach(function(r, i){ if (inches >= r[1] && inches < r[2]) idx = i; });
-        if (lb && lb > MM.HEAVY[store] && idx < chart.length - 1) idx++;
-        out.innerHTML = 'We suggest <b>' + chart[idx][0] + '</b>.' + (lb > MM.HEAVY[store] ? ' We went one size up for a comfortable fit across the shoulders.' : '');
-        pp.querySelectorAll(".sizes button").forEach(function(b){ if (b.textContent === chart[idx][0]) b.click(); });
-      });
+    // Size finder: type your height, see where you stand on the size scale, and pick the size in one tap
+    var fitBtn = pp.querySelector("[data-fit-open]");
+    if (fitBtn) {
+      var chart = MM.FIT[store], LO = 56, HI = 82, fp = null, pickSize = null;
+      var yOf = function(inches){ return 300 - (Math.max(LO, Math.min(HI, inches)) - LO) / (HI - LO) * 270; };   // px inside the drawing
+      var ftin = function(n){ return Math.floor(n / 12) + "′" + (n % 12 ? (n % 12) + "″" : ""); };
+      var draw = function(inches, idx){
+        var bands = chart.map(function(r, i){
+          var lo = Math.max(LO, r[1]), hi = Math.min(HI, r[2]), y1 = yOf(hi), y2 = yOf(lo), on = i === idx;
+          return '<rect x="150" y="' + y1 + '" width="74" height="' + (y2 - y1) + '" class="fb' + (on ? " on" : "") + '"/><text x="187" y="' + ((y1 + y2) / 2 + 5) + '" text-anchor="middle" class="ft' + (on ? " on" : "") + '">' + r[0] + '</text>' +
+            (i ? '<text x="232" y="' + (y2 + 4) + '" class="fl">' + ftin(lo) + '</text>' : '');
+        }).join("");
+        var fig = "";
+        if (inches) {
+          var top = yOf(inches), H = 300 - top, hr = H * 0.065, sh = top + hr * 2 + H * 0.03, hem = 300 - H * 0.05;
+          fig = '<g class="fig"><circle cx="78" cy="' + (top + hr) + '" r="' + hr + '"/>' +
+            '<path d="M' + (78 - H * 0.11) + ',' + sh + ' Q78,' + (sh - H * 0.03) + ' ' + (78 + H * 0.11) + ',' + sh + ' L' + (78 + H * 0.14) + ',' + hem + ' L' + (78 - H * 0.14) + ',' + hem + ' Z"/>' +
+            '<path class="fz" d="M78,' + (sh + 2) + ' V' + (sh + H * 0.3) + '"/>' +
+            '<rect x="' + (78 - H * 0.055) + '" y="' + hem + '" width="' + (H * 0.045) + '" height="' + (300 - hem) + '"/><rect x="' + (78 + H * 0.01) + '" y="' + hem + '" width="' + (H * 0.045) + '" height="' + (300 - hem) + '"/></g>' +
+            '<line class="fm" x1="30" x2="224" y1="' + top + '" y2="' + top + '"/><text class="fh" x="30" y="' + (top - 7) + '">' + ftin(inches) + '</text>';
+        }
+        return '<svg viewBox="0 0 270 316" role="img" aria-label="Size scale by height"><line class="fg" x1="20" x2="250" y1="300.5" y2="300.5"/>' + bands + fig + '</svg>';
+      };
+      var openFit = function(){
+        if (!fp) {
+          fp = document.createElement("div"); fp.className = "fitp"; fp.setAttribute("role", "dialog"); fp.setAttribute("aria-modal", "true"); fp.setAttribute("aria-label", "Find my size");
+          fp.innerHTML = '<div class="fitp-card"><button type="button" class="bag-x fitp-x" aria-label="Close"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>' +
+            '<div class="fitp-draw" data-fdraw></div><form class="fitp-form"><span class="eyebrow">Mamounia</span><h2>Find my size</h2>' +
+            '<label class="lbl">Height<span class="mm-hw"><input class="field" name="ft" type="number" inputmode="numeric" min="4" max="7" placeholder="ft" aria-label="Feet"><input class="field" name="in" type="number" inputmode="numeric" min="0" max="11" placeholder="in" aria-label="Inches"></span></label>' +
+            '<label class="lbl">Weight in lb (optional)<input class="field" name="lb" type="number" inputmode="numeric" min="60" max="400" placeholder="lb"></label>' +
+            '<div class="fitp-out" data-fout role="status"><span class="muted">Enter your height to see your size.</span></div>' +
+            '<button class="btn" type="submit" data-fuse disabled>Choose my size</button><p class="muted small">A starting guide based on height. Between two sizes or want an exact fit? <a href="custom.html">Have it made to measure</a>.</p></form></div>';
+          document.body.appendChild(fp);
+          var f = fp.querySelector("form"), out = fp.querySelector("[data-fout]"), use = fp.querySelector("[data-fuse]"), dr = fp.querySelector("[data-fdraw]");
+          var calc = function(){
+            var inches = (+f.ft.value || 0) * 12 + (+f.in.value || 0), lb = +f.lb.value || 0;
+            if (!f.ft.value || inches < 48 || inches > 90) { pickSize = null; use.disabled = true; use.textContent = "Choose my size"; out.innerHTML = '<span class="muted">Enter your height to see your size.</span>'; dr.innerHTML = draw(0, -1); return; }
+            var idx = 0; chart.forEach(function(r, i){ if (inches >= r[1] && inches < r[2]) idx = i; });
+            var up = lb && lb > MM.HEAVY[store] && idx < chart.length - 1; if (up) idx++;
+            pickSize = chart[idx][0]; use.disabled = false; use.textContent = "Choose size " + pickSize;
+            out.innerHTML = '<span class="fitp-lbl">Your size</span><b>' + pickSize + '</b>' + (up ? '<span class="muted small">One size up for comfort across the shoulders.</span>' : '');
+            dr.innerHTML = draw(inches, idx);
+          };
+          f.addEventListener("input", calc);
+          f.addEventListener("submit", function(e){ e.preventDefault(); if (!pickSize) return;
+            var hit = null; pp.querySelectorAll(".sizes button").forEach(function(b){ if (b.textContent === pickSize) hit = b; });
+            if (hit && !hit.disabled) hit.click(); else if (hit) pp.querySelector("[data-size-msg]").textContent = "Size " + pickSize + " is sold out right now.";
+            closeFit(); });
+          fp.addEventListener("click", function(e){ if (e.target === fp || e.target.closest(".fitp-x")) closeFit(); });
+          document.addEventListener("keydown", function(e){ if (e.key === "Escape" && fp.classList.contains("open")) closeFit(); });
+          calc();
+        }
+        void fp.offsetWidth; fp.classList.add("open"); document.body.classList.add("fit-open");
+        setTimeout(function(){ fp.querySelector("input").focus({preventScroll: true}); }, 80);
+      };
+      var closeFit = function(){ fp.classList.remove("open"); document.body.classList.remove("fit-open"); fitBtn.focus({preventScroll: true}); };
+      fitBtn.addEventListener("click", openFit);
     }
+  }
+
+  /* ---------- made to order: the fabric list follows the garment and the feel you pick ---------- */
+  var mto = $("[data-mto]");
+  if (mto) {
+    var fabs = mto.querySelectorAll(".ch-fab"), hint = mto.querySelector("[data-fab-hint]");
+    var syncFab = function(){
+      var g = mto.querySelector("[name=garment]:checked"), f = mto.querySelector("[name=feel]:checked");
+      var gk = g ? g.getAttribute("data-gar") : "", fk = f ? f.getAttribute("data-feel") : "", n = 0, firstOk = null, curOk = false;
+      fabs.forEach(function(l){
+        var ok = (" " + l.getAttribute("data-feels") + " ").indexOf(" " + fk + " ") > -1 && (" " + l.getAttribute("data-gars") + " ").indexOf(" " + gk + " ") > -1;
+        var inp = l.querySelector("input"); l.hidden = !ok; inp.disabled = !ok;
+        if (ok) { l.style.setProperty("--i", n); n++; if (!firstOk) firstOk = inp; if (inp.checked) curOk = true; } else inp.checked = false;
+      });
+      if (!curOk && firstOk) firstOk.checked = true;
+      if (hint) hint.textContent = n ? "Fabrics our artisans use for a " + (g ? g.value.toLowerCase() : "piece") + " with a " + (f ? f.value.split(" · ")[0].toLowerCase() : "") + " feel." : "Tell us in the notes what you have in mind and we will suggest a fabric.";
+      var box = mto.querySelector("[data-fabs]"); box.classList.remove("in"); void box.offsetWidth; box.classList.add("in");
+    };
+    mto.addEventListener("change", function(e){ if (e.target.name === "garment" || e.target.name === "feel") syncFab(); });
+    syncFab();
   }
 
   /* ---------- cart: order requests ---------- */
@@ -237,28 +305,73 @@ var MM = {
   /* ---------- 4. Family sets ---------- */
   var fam = $("[data-family]");
   if (fam) {
-    var roles = [["Father", "men"], ["Mother", "women"], ["Son", "men"], ["Daughter", "women"], ["Grandfather", "men"], ["Grandmother", "women"]];
-    var colors = [["White", "#F7F5EF"], ["Cream", "#EFE3C8"], ["Sand", "#D8C3A0"], ["Sea green", "#8FC3B5"], ["Emerald", "#0E4A36"], ["Navy", "#1F2F5A"], ["Burgundy", "#7A2234"], ["Black", "#1A1A1A"]];
-    var first = params.get("item");
-    var rows = $("[data-members]", fam);
+    var roles = [["Father", "men"], ["Mother", "women"], ["Son", "men"], ["Daughter", "women"], ["Grandfather", "men"], ["Grandmother", "women"], ["Brother", "men"], ["Sister", "women"], ["Uncle", "men"], ["Aunt", "women"]];
+    var roleSt = {}; roles.forEach(function(r){ roleSt[r[0].toLowerCase()] = r[1]; });
+    var fallback = [["White", "#F7F5EF"], ["Cream", "#EFE3C8"], ["Sand", "#D8C3A0"], ["Sea green", "#8FC3B5"], ["Emerald", "#0E4A36"], ["Navy", "#1F2F5A"], ["Burgundy", "#7A2234"], ["Black", "#1A1A1A"]];
+    // the colors we really have: every color added to a product in the admin, men and women together
+    var stock = [], seenC = {};
+    ["men", "women"].forEach(function(st){ PRODUCTS[st].forEach(function(p){ if (p.hidden) return; (p.variants || []).forEach(function(v){ var k = v.name.toLowerCase(); if (!seenC[k]) { seenC[k] = 1; stock.push([v.name, v.hex || "#ccc"]); } }); }); });
+    var hasStock = stock.length > 0, colors = hasStock ? stock : fallback;
+    var has = function(p, name){ return (p.variants || []).some(function(v){ return v.name.toLowerCase() === String(name).toLowerCase(); }); };
+    var first = params.get("item"), rows = $("[data-members]", fam), form = $("form", fam);
+    $("#mm-roles", fam).innerHTML = roles.map(function(r){ return '<option value="' + r[0] + '">'; }).join("");
+    var matching = function(){ return form.querySelector('[name=match]:checked').getAttribute("data-m") === "1"; };
+    var famColor = function(){ var c = form.querySelector('[name=color]:checked'); return c ? c.value : ""; };
+    function fillPieces(r, keep){
+      var st = r.querySelector("[name=grp]").value, piece = r.querySelector("[name=piece]"), m = matching() && hasStock, fc = famColor(), cur = keep || piece.value, any = false;
+      piece.innerHTML = PRODUCTS[st].filter(function(p){ return !p.hidden; }).map(function(p){
+        var ok = !m || has(p, fc); if (ok) any = true;
+        return '<option value="' + p.id + '"' + (ok ? "" : " disabled") + '>' + esc(p.name) + ' · ' + esc(CATS[st][p.cat]) + (ok ? "" : " (not in " + esc(fc) + ")") + '</option>';
+      }).join("");
+      var opt = piece.querySelector('option[value="' + cur + '"]');
+      if (opt && !opt.disabled) piece.value = cur; else { var f1 = piece.querySelector("option:not([disabled])"); if (f1) piece.value = f1.value; else piece.selectedIndex = -1; }
+      r.classList.toggle("none", !any);
+      r.querySelector(".mm-none").textContent = any ? "" : "No " + (st === "men" ? "men's" : "women's") + " piece in " + fc + " yet. Pick another color, or choose \"No, each chooses\".";
+      fillColors(r);
+    }
+    function fillColors(r){
+      var col = r.querySelector("[name=pcolor]"), pc = findAny(r.querySelector("[name=piece]").value), m = matching();
+      col.hidden = m; if (m) return;
+      var vs = (pc && pc.variants) || [], cur = col.value;
+      col.innerHTML = vs.length ? vs.map(function(v){ return '<option' + (v.name === cur ? " selected" : "") + '>' + esc(v.name) + '</option>'; }).join("") : '<option value="">Color: we will confirm</option>';
+    }
     function addRow(role, st, item){
-      var r = document.createElement("div"); r.className = "mm-member";
-      r.innerHTML = '<select class="field" name="who" aria-label="Who">' + roles.map(function(x){ return '<option data-st="' + x[1] + '"' + (x[0] === role ? " selected" : "") + '>' + x[0] + '</option>'; }).join("") + '</select>' +
-        '<select class="field" name="piece" aria-label="Piece"></select><select class="field" name="size" aria-label="Size">' + SIZES + '</select><button type="button" class="mm-x" aria-label="Remove">×</button>';
-      var who = r.querySelector('[name=who]'), piece = r.querySelector('[name=piece]');
-      function sync(sel){ var s = who.selectedOptions[0].getAttribute("data-st"); piece.innerHTML = productOptions(s, sel); }
-      who.addEventListener("change", function(){ sync(); count(); }); sync(item);
+      var r = document.createElement("div"); r.className = "mm-member v2";
+      r.innerHTML = '<input class="field" name="who" list="mm-roles" value="' + esc(role || "") + '" placeholder="Who? Choose or type a name" aria-label="Who is it for" autocomplete="off">' +
+        '<select class="field" name="grp" aria-label="Collection"><option value="men">Men\'s</option><option value="women">Women\'s</option></select>' +
+        '<select class="field" name="piece" aria-label="Piece"></select><select class="field" name="pcolor" aria-label="Color" hidden></select>' +
+        '<select class="field" name="size" aria-label="Size">' + SIZES + '</select><button type="button" class="mm-x" aria-label="Remove">×</button><p class="mm-none" role="status"></p>';
+      var who = r.querySelector("[name=who]"), grp = r.querySelector("[name=grp]");
+      grp.value = st || roleSt[String(role || "").toLowerCase()] || store;
+      who.addEventListener("input", function(){ var g = roleSt[who.value.trim().toLowerCase()]; if (g && g !== grp.value) { grp.value = g; fillPieces(r); } });
+      grp.addEventListener("change", function(){ fillPieces(r); });
+      r.querySelector("[name=piece]").addEventListener("change", function(){ fillColors(r); });
       r.querySelector(".mm-x").addEventListener("click", function(){ r.remove(); count(); });
-      rows.appendChild(r); count();
+      rows.appendChild(r); fillPieces(r, item); count();
+      return r;
     }
     function count(){ var n = rows.children.length; $("[data-fam-count]", fam).textContent = n + (n === 1 ? " piece" : " pieces") + (n >= 3 ? " · family set price applies (" + MM.FAMILY_DEAL + " off)" : " · add " + (3 - n) + " more for the family set price"); }
-    $("[data-colors]", fam).innerHTML = colors.map(function(c, i){ return '<label class="mm-swatch"><input type="radio" name="color" value="' + c[0] + '"' + (i === 0 ? " checked" : "") + '><span style="background:' + c[1] + '"></span><em>' + c[0] + '</em></label>'; }).join("");
-    $("[data-add-member]", fam).addEventListener("click", function(){ addRow(storeOf(first || "m") === "men" ? "Son" : "Daughter"); });
+    function refresh(){
+      var m = matching(); $("[data-famcolor]", fam).hidden = !m; fam.classList.toggle("is-match", m);
+      $("[data-fc-name]", fam).textContent = m ? famColor() : "";
+      Array.prototype.forEach.call(rows.children, function(r){ fillPieces(r); });
+    }
+    $("[data-colors]", fam).innerHTML = colors.map(function(c, i){ return '<label class="mm-swatch"><input type="radio" name="color" value="' + esc(c[0]) + '"' + (i === 0 ? " checked" : "") + '><span style="background:' + esc(c[1]) + '"></span><em>' + esc(c[0]) + '</em></label>'; }).join("");
+    $("[data-fc-note]", fam).textContent = hasStock ? "These are the colors we have in stock right now, across the men's and women's stores." : "Pick the color you have in mind and we will tell you which pieces we have in it.";
+    // coming from a product page: start on that piece and one of its colors
+    var fp = first && findAny(first);
+    if (fp && fp.variants && fp.variants.length) { var pre = form.querySelector('[name=color][value="' + fp.variants[0].name.replace(/"/g, "") + '"]'); if (pre) pre.checked = true; }
+    form.addEventListener("change", function(e){ if (e.target.name === "match" || e.target.name === "color") refresh(); });
+    $("[data-add-member]", fam).addEventListener("click", function(){ var r = addRow("", store); r.querySelector("[name=who]").focus(); });
     var fs = first ? storeOf(first) : store;
     addRow(fs === "men" ? "Father" : "Mother", fs, first); addRow(fs === "men" ? "Mother" : "Father", fs === "men" ? "women" : "men"); addRow(fs === "men" ? "Son" : "Daughter", fs);
-    wire($("form", fam), "family", function(d){
-      d.pieces = Array.prototype.map.call(rows.children, function(r){ var pc = findAny(r.querySelector("[name=piece]").value); return r.querySelector("[name=who]").value + ": " + (pc ? pc.name : "") + " (" + (r.querySelector("[name=size]").value || "size?") + ")"; }).join("; ");
-      delete d.who; delete d.piece; delete d.size;
+    refresh();
+    wire(form, "family", function(d){
+      var m = matching();
+      d.pieces = Array.prototype.map.call(rows.children, function(r){ var pc = findAny(r.querySelector("[name=piece]").value), col = m ? famColor() : r.querySelector("[name=pcolor]").value;
+        return (r.querySelector("[name=who]").value.trim() || "Family member") + ": " + (pc ? pc.name : "no piece chosen") + " (" + (col || "color to confirm") + ", " + (r.querySelector("[name=size]").value || "size?") + ")"; }).join("; ");
+      if (!m) delete d.color;
+      delete d.who; delete d.piece; delete d.size; delete d.grp; delete d.pcolor;
     }, "fam-done");
   }
 

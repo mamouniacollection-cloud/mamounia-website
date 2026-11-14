@@ -31,7 +31,8 @@
     var href = "product.html?id=" + p.id + (cur ? "&color=" + encodeURIComponent(cur.name) : "");
     var a = photo(p, 0, cur), b = photo(p, 1, cur);
     return '<a class="card" href="' + href + '" data-pid="' + p.id + '">' +
-      '<div class="img">' + (a ? '<img class="pimg" src="' + a + '" alt="' + esc(p.name) + '" loading="lazy">' + (b ? '<img class="pimg alt" src="' + b + '" alt="" loading="lazy">' : '') : '<div class="ph">Photo · ' + esc(p.name) + '</div>') + badge(p) + '</div>' +
+      '<div class="img">' + (a ? '<img class="pimg" src="' + a + '" alt="' + esc(p.name) + '" loading="lazy">' + (b ? '<img class="pimg alt" src="' + b + '" alt="" loading="lazy">' : '') : '<div class="ph">Photo · ' + esc(p.name) + '</div>') + badge(p) +
+      '<span class="qv-btn" role="button" tabindex="0" data-qv="' + p.id + '" aria-label="Quick view: ' + esc(p.name) + '" title="Quick view"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></span></div>' +
       '<span class="kind">' + (v ? esc(v.name) + ' · ' : '') + cats[p.cat] + ' · ' + SEASONS[p.season] + '</span>' +
       '<h3>' + esc(p.name) + '</h3><span class="price">' + money(p.price) + '</span>' + (withSw ? swatches(p, cur) : '') + '</a>';
   }
@@ -500,6 +501,74 @@
       var cnt = a.querySelector(".cart-count"); if (cnt) { cnt.classList.remove("pop"); void cnt.offsetWidth; cnt.classList.add("pop"); }
     });
   }
+
+
+  /* ---------- Page transitions: the photo you click grows into the product page ---------- */
+  document.addEventListener("click", function(e){
+    var a = e.target.closest && e.target.closest('a.card[href*="product.html"]'); if (!a || e.target.closest(".qv-btn")) return;
+    document.querySelectorAll(".card .img").forEach(function(x){ x.style.viewTransitionName = ""; });
+    var box = a.querySelector(".img"), im = a.querySelector(".img .pimg");
+    if (box) box.style.viewTransitionName = "mm-hero";
+    try { var id = (a.getAttribute("href").match(/[?&]id=([^&]+)/) || [])[1]; if (im && id) sessionStorage.setItem("mm-hero", JSON.stringify({id: decodeURIComponent(id), src: im.currentSrc || im.src})); else sessionStorage.removeItem("mm-hero"); } catch(x){}
+  }, true);
+
+  /* ---------- Quick view: see a piece, pick a size and add it without leaving the page ---------- */
+  var qv = null, qvVeil = null, qvFocus = null, QSIZES = ["S", "M", "L", "XL", "XXL"];
+  function closeQV(){ if (!qv) return; document.body.classList.remove("qv-open"); if (qvFocus && qvFocus.focus) qvFocus.focus({preventScroll: true}); }
+  function openQV(p, colorName){
+    if (!qv) {
+      qvVeil = document.createElement("div"); qvVeil.className = "bag-veil qv-veil";
+      qv = document.createElement("aside"); qv.className = "bag qv"; qv.setAttribute("role", "dialog"); qv.setAttribute("aria-modal", "true"); qv.setAttribute("aria-label", "Quick view"); qv.tabIndex = -1;
+      document.body.appendChild(qvVeil); document.body.appendChild(qv);
+      qvVeil.addEventListener("click", closeQV);
+      document.addEventListener("keydown", function(e){ if (e.key === "Escape" && document.body.classList.contains("qv-open")) closeQV(); });
+    }
+    var vs = vlist(p), cur = vs ? (vfind(p, colorName) || vs[0]) : null, size = null, shown = [];
+    var color = function(){ return cur ? cur.name : ""; };
+    qv.innerHTML = '<div class="bag-head"><div><span class="bag-eyebrow">' + esc(cats[p.cat] || "") + ' · ' + esc(SEASONS[p.season] || "") + '</span><h2>' + esc(p.name) + '</h2></div>' +
+      '<button type="button" class="bag-x" data-qx aria-label="Close"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>' +
+      '<div class="bag-body qv-body"><div class="qv-main" data-qmain></div><div class="qv-thumbs" data-qthumbs></div>' +
+      '<div class="qv-price">' + money(p.price) + '</div>' +
+      (vs ? '<div class="qv-opt"><span class="opt-label">Color: <b data-qcn></b></span><div class="sw-pick">' + vs.map(function(v, i){ return '<button type="button" class="swp" data-qc="' + i + '" title="' + esc(v.name) + '" style="--c:' + esc(v.hex || "#ccc") + '"><span class="sr">' + esc(v.name) + '</span></button>'; }).join("") + '</div></div>' : '') +
+      '<div class="qv-opt"><span class="opt-label">Size</span><div class="sizes" role="group" aria-label="Size">' + QSIZES.map(function(z){ var gone = p.sizesLeft && p.sizesLeft[z] != null && p.sizesLeft[z] <= 0; return '<button type="button" aria-pressed="false" data-qs="' + z + '"' + (gone ? ' disabled title="Sold out"' : '') + '>' + z + '</button>'; }).join("") + '</div><p class="qv-msg" role="alert" data-qmsg></p></div></div>' +
+      '<div class="bag-foot"><button type="button" class="btn bag-go" data-qadd' + (p.soldOut ? ' disabled' : '') + '>' + (p.soldOut ? 'Sold out' : 'Add to bag') + '</button><a class="bag-view" data-qfull href="#">View full details</a></div>';
+    function paint(){
+      shown = vph(p, cur);
+      var m = qv.querySelector("[data-qmain]"), t = qv.querySelector("[data-qthumbs]");
+      m.innerHTML = shown.length ? '<img src="' + MM_IMG(shown[0]) + '" alt="' + esc(p.name) + '">' : '<div class="ph">Photo · ' + esc(p.name) + (cur ? ' · ' + esc(cur.name) : '') + '</div>';
+      t.innerHTML = shown.length > 1 ? shown.slice(0, 5).map(function(id, i){ return '<button type="button" class="thumb' + (i === 0 ? " on" : "") + '" data-qt="' + i + '" aria-label="Photo ' + (i + 1) + '"><img src="' + MM_IMG(id) + '" alt=""></button>'; }).join("") : "";
+      if (vs) { qv.querySelector("[data-qcn]").textContent = cur.name; qv.querySelectorAll("[data-qc]").forEach(function(b){ b.classList.toggle("on", vs[+b.getAttribute("data-qc")] === cur); }); }
+      qv.querySelector("[data-qfull]").href = "product.html?id=" + encodeURIComponent(p.id) + (cur ? "&color=" + encodeURIComponent(cur.name) : "");
+    }
+    qv.onclick = function(e){
+      var b = e.target.closest("button, a"); if (!b) return;
+      if (b.hasAttribute("data-qx")) return closeQV();
+      if (b.hasAttribute("data-qc")) { cur = vs[+b.getAttribute("data-qc")]; return paint(); }
+      if (b.hasAttribute("data-qt")) { var im = qv.querySelector("[data-qmain] img"); if (im) im.src = MM_IMG(shown[+b.getAttribute("data-qt")]); qv.querySelectorAll(".thumb").forEach(function(x){ x.classList.toggle("on", x === b); }); return; }
+      if (b.hasAttribute("data-qs")) { size = b.getAttribute("data-qs"); qv.querySelectorAll("[data-qs]").forEach(function(x){ x.setAttribute("aria-pressed", x === b); }); qv.querySelector("[data-qmsg]").textContent = ""; return; }
+      if (b.hasAttribute("data-qadd")) {
+        if (!size) { qv.querySelector("[data-qmsg]").textContent = "Please choose a size."; return; }
+        var c = readCart(), hit = null, col = color();
+        c.forEach(function(it){ if (it.id === p.id && it.size === size && it.color === col) hit = it; });
+        if (hit) hit.qty++; else c.push({id: p.id, size: size, color: col, qty: 1});
+        writeCart(c); document.body.classList.remove("qv-open");
+        setTimeout(function(){ window.mmOpenBag(p.id + "|" + size + "|" + col); }, 260);
+      }
+    };
+    paint();
+    qvFocus = document.activeElement;
+    document.body.style.setProperty("--sbw", (window.innerWidth - document.documentElement.clientWidth) + "px");
+    void qv.offsetWidth; document.body.classList.add("qv-open");
+    setTimeout(function(){ var x = qv.querySelector(".bag-x"); if (x) x.focus({preventScroll: true}); }, 60);
+  }
+  function qvFrom(btn, e){
+    e.preventDefault(); e.stopPropagation();
+    var p = find(btn.getAttribute("data-qv")); if (!p) return;
+    var a = btn.closest("a"), m = a && (a.getAttribute("href") || "").match(/[?&]color=([^&]+)/);
+    openQV(p, m ? decodeURIComponent(m[1]) : "");
+  }
+  document.addEventListener("click", function(e){ var b = e.target.closest && e.target.closest(".qv-btn"); if (b) qvFrom(b, e); }, true);
+  document.addEventListener("keydown", function(e){ if ((e.key === "Enter" || e.key === " ") && e.target.classList && e.target.classList.contains("qv-btn")) qvFrom(e.target, e); });
 
   // Made-to-order and waitlist forms (demo: show a thank-you; connect to your backend)
   document.querySelectorAll("form[data-demo]").forEach(function(f){
