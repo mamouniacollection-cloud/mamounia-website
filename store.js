@@ -185,6 +185,32 @@
       gift: ["Giving it as a gift? We add a handwritten note in Arabic, English or Urdu.", "Make it a gift →", "gift.html"],
       popup: ["See it in person before you buy: we bring the collection to pop-ups across DFW.", "Find us →", "events.html"]
     };
+    // A fabric inside a garment: one photo, and the color circles of every piece in it
+    function subCard(cat, f, ps, season){
+      var name = FABRICS[f].name + " " + cats[cat], sw = [], seen = {}, nCards = 0, first = null, prices = [];
+      ps.forEach(function(p){
+        var vs = vlist(p); nCards += vs ? vs.length : 1; if (p.price != null) prices.push(p.price);
+        if (!vs) { var a0 = photo(p, 0); if (a0 && !first) first = [a0, photo(p, 1)]; return; }
+        vs.forEach(function(v){ var k = v.name.toLowerCase(); if (seen[k]) return; seen[k] = 1; var a = photo(p, 0, v); sw.push({name: v.name, hex: v.hex || "#ccc", a: a, b: photo(p, 1, v)}); if (a && !first) first = [a, photo(p, 1, v)]; });
+      });
+      var one = ps.length === 1 && nCards <= 1;
+      var href = one ? "product.html?id=" + ps[0].id : "shop.html?cat=" + cat + "&fabric=" + f + (season ? "&season=" + season : "");
+      var min = prices.length ? Math.min.apply(null, prices) : null, many = prices.length > 1 && Math.max.apply(null, prices) !== min;
+      return '<a class="card' + (one ? "" : " sub-card") + '" href="' + href + '">' +
+        '<div class="img">' + (first ? '<img class="pimg" src="' + first[0] + '" alt="' + esc(name) + '" loading="lazy">' + (first[1] ? '<img class="pimg alt" src="' + first[1] + '" alt="" loading="lazy">' : '') : '<div class="ph">Photo · ' + esc(name) + '</div>') + '</div>' +
+        '<span class="kind">' + (sw.length ? sw.length + (sw.length === 1 ? " color" : " colors") : nCards + (nCards === 1 ? " piece" : " pieces")) + '</span>' +
+        '<h3>' + esc(name) + '</h3><span class="price">' + (many ? "From " : "") + money(min) + '</span>' +
+        (sw.length ? '<span class="sw-row" aria-label="Colors">' + sw.map(function(x, i){ return '<span class="sw' + (i === 0 ? " on" : "") + '" data-sub-a="' + esc(x.a || "") + '" data-sub-b="' + esc(x.b || "") + '" title="' + esc(x.name) + '" style="--c:' + esc(x.hex) + '"></span>'; }).join("") + '</span>' : '') +
+        '<span class="sub-go">' + (one ? "View the piece" : sw.length ? "See all colors" : "See all pieces") + ' <span aria-hidden="true">→</span></span></a>';
+    }
+    function subShow(sw){
+      var c = sw.closest(".card"), a = sw.getAttribute("data-sub-a"), b = sw.getAttribute("data-sub-b"), imgs = c.querySelectorAll(".img .pimg");
+      if (a) { if (imgs[0]) imgs[0].src = a; else c.querySelector(".img").innerHTML = '<img class="pimg" src="' + a + '" alt="">'; }
+      if (imgs[1]) { if (b) imgs[1].src = b; imgs[1].style.display = b && a ? "" : "none"; }
+      c.querySelectorAll(".sw").forEach(function(x){ x.classList.toggle("on", x === sw); });
+    }
+    grid.addEventListener("pointerover", function(e){ var sw = e.target.closest && e.target.closest(".sw[data-sub-a]"); if (sw) subShow(sw); });
+    grid.addEventListener("pointerdown", function(e){ var sw = e.target.closest && e.target.closest(".sw[data-sub-a]"); if (sw) subShow(sw); });
     function noteHTML(n, look){
       var img = look === "light" ? store + "-rosette.png" : store + "-rosette-light.png", inner = '<span class="eyebrow">Mamounia</span><p>' + esc(n[0]) + '</p><a href="' + n[2] + '">' + esc(n[1]) + '</a>';
       return '<aside class="coll-story ' + look + '"><img src="' + img + '" alt="">' + (look.indexOf("wide") > -1 ? '<div>' + inner + '</div>' : inner) + '</aside>';
@@ -209,7 +235,14 @@
       var base = function(p){ return (!s.length || s.indexOf(p.season) > -1 || p.season === "all") && (!t.length || t.indexOf(p.fabric) > -1) && (!q || mmMatch(p, q)); };
       var list = items.filter(function(p){ return (!c.length || c.indexOf(p.cat) > -1) && base(p); });
       var cards = [];
-      list.forEach(function(p){
+      // One garment picked and no fabric yet: show its fabrics first (Gabardine Djellaba, Sousdi Djellaba...).
+      // Picking one then shows every piece in it, each color as its own card.
+      var grouped = c.length === 1 && !t.length && !cl.length && !q;
+      if (grouped) {
+        var order = [], by = {};
+        list.forEach(function(p){ var f = p.fabric && FABRICS[p.fabric] ? p.fabric : ""; if (!f) { cards.push(card(p, null, true)); return; } if (!by[f]) { by[f] = []; order.push(f); } by[f].push(p); });
+        cards = order.map(function(f){ return subCard(c[0], f, by[f], s[0]); }).concat(cards);
+      } else list.forEach(function(p){
         var vs = vlist(p);
         if (!vs) { if (!cl.length) cards.push(card(p)); return; }
         vs.forEach(function(v){ if (!cl.length || cl.indexOf(v.name.toLowerCase()) > -1) cards.push(card(p, v)); });
@@ -220,13 +253,19 @@
       grid.innerHTML = n ? cards.join("") : '<div class="empty coll-empty"><h3>Nothing here yet</h3><p>No pieces match these choices. Try another fabric or season.</p></div>';
       grid.querySelectorAll(".card, .coll-story").forEach(function(el, i){ el.classList.add("rv", "in"); el.style.setProperty("--i", Math.min(i, 10)); });
       grid.classList.remove("enter"); void grid.offsetWidth; grid.classList.add("enter");
-      document.querySelector("[data-count]").textContent = n + (n === 1 ? " piece" : " pieces");
+      document.querySelector("[data-count]").textContent = grouped ? n + (n === 1 ? " style" : " styles") + " · pick one to see every color" : n + (n === 1 ? " piece" : " pieces");
       // counts on the garment doors
       form.querySelectorAll("[data-ccount]").forEach(function(el){ var k = el.getAttribute("data-ccount"); el.textContent = items.filter(function(p){ return (!k || p.cat === k) && base(p); }).length; });
       dds.forEach(function(d){ var k = d.querySelectorAll("input:checked").length; d.querySelector("[data-dd-n]").textContent = k ? k : ""; d.classList.toggle("has", k > 0); });
       // the heading follows what you picked
       var head = "Shop All", eb = baseEyebrow, it = baseIntro, layer = "all";
       if (c.length === 1) { head = cats[c[0]] + "s"; it = INTRO[c[0]] || baseIntro; layer = "cat-" + c[0]; }
+      var sub = c.length === 1 && t.length === 1 && FABRICS[t[0]];
+      if (sub) { head = FABRICS[t[0]].name + " " + cats[c[0]] + "s"; it = FABRICS[t[0]].note || it; }
+      var cr = document.querySelector(".coll-head .crumbs");
+      if (cr) cr.innerHTML = '<a href="index.html">Home</a> / ' + (c.length === 1 ? '<a href="shop.html">Shop</a> / ' + (sub ? '<a href="shop.html?cat=' + c[0] + '">' + esc(cats[c[0]]) + 's</a> / ' + esc(FABRICS[t[0]].name) : esc(cats[c[0]]) + 's') : 'Shop');
+      var back = document.querySelector("[data-back]");
+      if (back) { back.hidden = !sub; if (sub) { back.href = "shop.html?cat=" + c[0]; back.textContent = "← All " + cats[c[0]] + "s"; } }
       if (s.length === 1) { if (c.length === 1) eb = SEASONS[s[0]] + " · " + baseEyebrow; else { head = SEASONS[s[0]] + " Collection"; it = INTRO[s[0]]; layer = "season-" + s[0]; } }
       if (!c.length && !s.length && t.length === 1 && FABRICS[t[0]]) { head = FABRICS[t[0]].name; it = FABRICS[t[0]].note || baseIntro; }
       if (q) { head = "Results for “" + params.get("q").trim() + "”"; }

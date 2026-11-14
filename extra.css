@@ -363,7 +363,6 @@ body[data-home].mm-overlay .hero-video .wrap{padding-top:150px}
 /* ---------- Side bag ---------- */
 .bag-veil{position:fixed;inset:0;z-index:90;background:rgba(18,24,20,.42);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);opacity:0;visibility:hidden;transition:opacity .45s var(--ease),visibility 0s linear .45s}
 .bag{position:fixed;top:0;right:0;bottom:0;z-index:91;width:min(440px,100vw);display:flex;flex-direction:column;background:var(--surface);box-shadow:-24px 0 60px rgba(20,25,22,.18);transform:translateX(104%);transition:transform .55s cubic-bezier(.22,1,.36,1);outline:none}
-.bag::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:repeating-linear-gradient(180deg,var(--accent) 0 10px,transparent 10px 14px,var(--primary) 14px 22px,transparent 22px 26px);opacity:.85}
 body.bag-open{overflow:hidden;padding-right:var(--sbw,0)}
 body.bag-open .bag-veil{opacity:1;visibility:visible;transition:opacity .45s var(--ease)}
 body.bag-open .bag{transform:none}
@@ -492,3 +491,24 @@ body.bag-open .bag-item{opacity:1;transform:none;transition-delay:calc(var(--d) 
   .coll-story.wide{grid-column:auto;flex-direction:column;align-items:flex-start}
   .coll-story{min-height:0;padding:28px 22px}.coll-story p{font-size:19px}
 }
+
+/* A photo box with no photo yet never zooms on hover, so its label is never cut */
+.ph:not(.mm-has-img){transform:none!important}
+/* Color filter: the dot and the full color name on one line */
+.coll-side .swf{flex-direction:row;width:auto;text-align:left;white-space:nowrap;gap:8px;padding:5px 14px 5px 5px;font-size:14px;line-height:1.2}
+.coll-side .swf span{width:22px;height:22px;flex:0 0 auto;outline:0}
+.coll-side .swf:hover span{transform:none}
+.coll-side .swf:hover{border-color:var(--accent)}
+.coll-side .swf em{color:var(--ink)}
+.bag-arch{width:96px;height:96px;border-radius:50%}
+.bag-arch::after{border-radius:50%}
+
+/* Fabric cards inside a garment */
+.sub-card .sw-row{margin-top:6px}
+.sub-card .sw{width:20px;height:20px}
+.sub-go{margin-top:6px;font-size:12px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--accent-ink)}
+.sub-go span{display:inline-block;transition:transform .35s var(--ease)}
+.sub-card:hover .sub-go span{transform:translateX(5px)}
+.card.sub-card .img::before{content:"See all colors"}
+.coll-back{font-size:13px;letter-spacing:.12em;text-transform:uppercase;font-weight:600;color:var(--primary);text-decoration:none}
+.coll-back:hover{color:var(--accent-ink)}
