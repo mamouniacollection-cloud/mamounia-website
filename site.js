@@ -40,7 +40,7 @@ var MM_API = "https://mamounia-admin.onrender.com";   // your admin address, e.g
         return {id: p.id, name: p.name || "", cat: p.cat, season: p.season || "all", fabric: p.fabric || "", note: p.note || "",
                 price: p.price === "" || p.price == null ? null : +p.price, colors: p.colors || [], photos: p.photos || [],
                 hidden: !!p.hidden, badge: p.badge || "", soldOut: !!p.soldOut, sizesLeft: p.sizesLeft || null, origin: p.origin || "",
-                variants: (p.variants || []).filter(function(v){ return v && v.name; }).map(function(v){ return {name: v.name, hex: v.hex || "", hex2: v.hex2 || "", photos: v.photos || []}; })};
+                variants: (p.variants || []).filter(function(v){ return v && v.name; }).map(function(v){ return {name: v.name, hex: v.hex || "", hex2: v.hex2 || "", photos: v.photos || [], soldOut: !!v.soldOut, sizesLeft: v.sizesLeft || null}; })};
       });
     });
     window.MM_SETTINGS = c.settings || {};
@@ -68,7 +68,15 @@ var MM_API = "https://mamounia-admin.onrender.com";   // your admin address, e.g
       el.classList.add("mm-has-img");
     });
     var vid = (c.video || {})[store], v = document.querySelector("[data-hero-video]");
-    if (v && vid) { var src = v.querySelector("source"); src.src = /^https?:/.test(vid) ? vid : MM_IMG(vid); v.load(); v.classList.add("mm-has-video"); }
+    if (v && vid) {
+      var src = v.querySelector("source");
+      // if the video can't play here, hide it so the home page photo shows instead of a black box
+      var fail = function(){ v.classList.remove("mm-has-video"); v.style.display = "none"; };
+      src.addEventListener("error", fail); v.addEventListener("error", fail);
+      src.src = /^https?:/.test(vid) ? vid : MM_IMG(vid); v.style.display = ""; v.load(); v.classList.add("mm-has-video");
+      var pl = v.play && v.play(); if (pl && pl.catch) pl.catch(function(){});
+      setTimeout(function(){ if (!v.videoWidth && v.readyState < 2) fail(); }, 20000);
+    }
     // your own wording, with Arabic and Urdu if you added them
     var txt = (c.text || {})[store] || {}, extra = [];
     document.querySelectorAll("[data-text]").forEach(function(el){

@@ -6,15 +6,13 @@ var MM = {
   // The admin address is set once, in assets/site.js (MM_API).
   API: window.MM_API || "",
   CITY: {name: "Allen", lat: 33.1032, lon: -96.6706},
-  GIVE_BACK: "[X]%",          // share of each order given to the customer's masjid
   FAMILY_DEAL: "[X]%",        // discount on family sets of 3 or more pieces
   INSTAGRAM: "[INSTAGRAM LINK]",
-  MASJIDS: ["Islamic Association of Allen", "East Plano Islamic Center (EPIC)", "Plano Masjid", "IANT, Richardson",
-            "Islamic Center of Frisco", "Valley Ranch Islamic Center", "Islamic Center of Irving"],
   // Shown on the "Find us" page when the admin isn't connected. With the admin connected,
   // events ticked "Show on website" in the Events tab appear instead.
   EVENTS: [],
-  // The store follows the Islamic calendar. Dates are expected dates and can move by a day.
+  // The store follows the Islamic calendar. These dates are only a backup: the site works out
+  // Ramadan, Eid al-Fitr and Eid al-Adha by itself every year (see "the Islamic-calendar season" below).
   SEASONS: [
     {from: "2026-11-01", to: "2027-01-08", key: "winter", text: "Djellaba season in DFW. Ramadan begins in about {days:2027-02-08} days.", cta: ["Shop winter", "shop.html?season=winter"]},
     {from: "2027-01-09", to: "2027-02-07", key: "preramadan", text: "Ramadan begins in {days:2027-02-08} days. Taraweeh pieces are in.", cta: ["Shop for Ramadan", "shop.html"]},
@@ -52,7 +50,7 @@ var MM = {
 
 // Settings from the admin's Website design tab win over the defaults above
 (function(s){ if (!s) return;
-  if (s.give_back) MM.GIVE_BACK = s.give_back; if (s.family_deal) MM.FAMILY_DEAL = s.family_deal;
+  if (s.family_deal) MM.FAMILY_DEAL = s.family_deal;
   if (s.instagram) MM.INSTAGRAM = s.instagram; if (s.city) MM.CITY.name = s.city;
 })(window.MM_SETTINGS);
 
@@ -87,9 +85,55 @@ var MM = {
 
   /* ---------- 1. the Islamic-calendar season ---------- */
   var t = today(), season = null;
+  // Work out this year's Ramadan, Eid al-Fitr and Eid al-Adha from the Islamic (Umm al-Qura) calendar,
+  // so the banner never needs new dates. Expected dates; the moon sighting can move them by a day.
+  (function(){
+    try {
+      var fmt = new Intl.DateTimeFormat("en-u-ca-islamic-umalqura", {day: "numeric", month: "numeric", year: "numeric"});
+      var hij = function(d){ var o = {}; fmt.formatToParts(d).forEach(function(x){ o[x.type] = x.value; }); return [+o.month, +o.day]; };
+      if (hij(new Date(2027, 1, 8))[0] !== 9) return;     // this browser can't do the Islamic calendar: keep the backup dates
+      var ymd = function(d){ return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2); };
+      var add = function(d, n){ var x = new Date(d); x.setDate(x.getDate() + n); return x; };
+      var now = new Date(); now.setHours(12, 0, 0, 0);
+      var find = function(from, m, day){ for (var i = 0; i < 420; i++) { var d = add(from, i), h = hij(d); if (h[0] === m && h[1] === day) return d; } return null; };
+      var A = find(add(now, -3), 12, 10);                     // the next Eid al-Adha (or the one happening now)
+      if (!A) return;
+      var R = find(add(A, -110), 9, 1), E = find(add(A, -80), 10, 1);   // that year's 1 Ramadan and Eid al-Fitr
+      if (!R || !E) return;
+      var nextR = find(add(A, 200), 9, 1);
+      var month = function(d){ return d.toLocaleDateString("en-US", {month: "long", day: "numeric"}); };
+      var list = [], put = function(from, to, key, text, cta){ if (to >= from) list.push({from: ymd(from), to: ymd(to), key: key, text: text, cta: cta}); };
+      var fillers = function(from, to, ram){   // the quiet months: winter or summer, by the weather
+        for (var d = new Date(from); d <= to; ) {
+          var m = d.getMonth() + 1, summer = m >= 5 && m <= 9, end = new Date(d.getFullYear(), summer ? 9 : (m >= 10 ? 16 : 4), 0);
+          if (end > to) end = to;
+          var soon = ram && (ram - d) / 864e5 < 120;
+          if (summer) put(d, end, "summer", "Summer in DFW: light gandouras, linen and crepe.", ["Shop summer", "shop.html?season=summer"]);
+          else put(d, end, "winter", soon ? "Djellaba season in DFW. Ramadan begins in about {days:" + ymd(ram) + "} days." : "Djellaba season is back in DFW. Warm melifa and wool are in.", ["Shop winter", "shop.html?season=winter"]);
+          d = add(end, 1);
+        }
+      };
+      fillers(add(now, -1), add(R, -31), R);
+      put(add(R, -30), add(R, -1), "preramadan", "Ramadan begins in {days:" + ymd(R) + "} days. Taraweeh pieces are in.", ["Shop for Ramadan", "shop.html"]);
+      put(R, add(E, -7), "ramadan", "Ramadan Mubarak. Order by {date:" + ymd(add(E, -7)) + "} to have it before Eid: {left:" + ymd(add(E, -7)) + "T23:59:00}", ["Shop Eid outfits", "shop.html"]);
+      put(add(E, -6), add(E, -2), "pickup", "Too late for shipping? Reserve online and pick up in Allen before Eid.", ["Reserve and pick up", "events.html"]);
+      put(add(E, -1), add(E, -1), "chandraat", "Chand Raat tonight: last-minute Eid outfits, pick up in Allen.", ["Reserve now", "events.html"]);
+      put(E, add(E, 2), "eid", "Eid Mubarak from Mamounia. Share your Eid photos with #MamouniaEid", ["Shop the collection", "shop.html"]);
+      put(add(E, 3), add(A, -10), "spring", "Wedding and henna season. Dress the whole family in one color.", ["Build a family set", "family.html"]);
+      put(add(A, -9), add(A, -5), "dhulhijjah", "The best ten days. Order by {date:" + ymd(add(A, -5)) + "} for Eid al-Adha: {left:" + ymd(add(A, -5)) + "T23:59:00}", ["Shop for Eid", "shop.html"]);
+      put(add(A, -4), add(A, -1), "pickup", "Eid al-Adha is close. Reserve online and pick up in Allen.", ["Reserve and pick up", "events.html"]);
+      put(A, add(A, 2), "eid", "Eid al-Adha Mubarak from Mamounia.", ["Send an Eid gift", "gift.html"]);
+      fillers(add(A, 3), add(A, 380), nextR);
+      if (list.length) MM.SEASONS = list;
+      MM.DATES = {ramadan: ymd(R), eid: ymd(E), adha: ymd(A)};
+    } catch(e){}
+  })();
   MM.SEASONS.forEach(function(s){ if (t >= s.from && t <= s.to) season = s; });
+  var MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  // Numbers and dates go in their own <b> so the words around them can be translated
   function fill(text){
-    return text.replace(/\{days:([\d-]+)\}/g, function(_, d){ return Math.max(0, Math.ceil((new Date(d + "T00:00:00") - new Date()) / 864e5)); })
+    return text.replace(/\{days:([\d-]+)\}/g, function(_, d){ return '<b class="mm-n">' + Math.max(0, Math.ceil((new Date(d + "T00:00:00") - new Date()) / 864e5)) + '</b>'; })
+               .replace(/\{date:([\d-]+)\}/g, function(_, d){ var x = new Date(d + "T12:00:00"); return '<b class="mm-n">' + MONTH_NAMES[x.getMonth()] + " " + x.getDate() + '</b>'; })
                .replace(/\{left:([^}]+)\}/g, function(_, d){ return '<b class="mm-left" data-until="' + d + '"></b>'; });
   }
   function tick(){
@@ -103,7 +147,7 @@ var MM = {
   if (season) {
     document.body.classList.add("season-" + season.key);
     var ann = $(".announce .ann-row > span");
-    if (ann) ann.innerHTML = '<span class="mm-season">' + fill(season.text) + '</span> <a class="mm-season-cta" href="' + season.cta[1] + '">' + esc(season.cta[0]) + ' →</a>';
+    if (ann) ann.innerHTML = '<span class="mm-season">' + fill(season.text) + '</span> <a class="mm-season-cta" href="' + season.cta[1] + '">' + esc(season.cta[0]) + '<span aria-hidden="true"> →</span></a>';
     tick(); setInterval(tick, 30000);
   }
   // A "this season" edit on the home page
@@ -225,10 +269,10 @@ var MM = {
           document.addEventListener("keydown", function(e){ if (e.key === "Escape" && fp.classList.contains("open")) closeFit(); });
           calc();
         }
-        void fp.offsetWidth; fp.classList.add("open"); document.body.classList.add("fit-open");
+        void fp.offsetWidth; fp.classList.add("open"); document.body.classList.add("fitp-open");
         setTimeout(function(){ fp.querySelector("input").focus({preventScroll: true}); }, 80);
       };
-      var closeFit = function(){ fp.classList.remove("open"); document.body.classList.remove("fit-open"); fitBtn.focus({preventScroll: true}); };
+      var closeFit = function(){ fp.classList.remove("open"); document.body.classList.remove("fitp-open"); fitBtn.focus({preventScroll: true}); };
       fitBtn.addEventListener("click", openFit);
     }
   }
@@ -329,7 +373,8 @@ var MM = {
     var hasStock = stock.length > 0, colors = hasStock ? stock : fallback;
     var has = function(p, name){ return (p.variants || []).some(function(v){ return v.name.toLowerCase() === String(name).toLowerCase(); }); };
     var first = params.get("item"), rows = $("[data-members]", fam), form = $("form", fam);
-    $("#mm-roles", fam).innerHTML = roles.map(function(r){ return '<option value="' + r[0] + '">'; }).join("");
+    var roleList = function(){ $("#mm-roles", fam).innerHTML = roles.map(function(r){ return '<option value="' + esc(window.mmT ? mmT(r[0]) : r[0]) + '">'; }).join(""); };
+    roleList(); setTimeout(roleList, 500); document.addEventListener("change", function(e){ if (e.target && e.target.id === "lang") setTimeout(roleList, 0); });
     var matching = function(){ return form.querySelector('[name=match]:checked').getAttribute("data-m") === "1"; };
     var famColor = function(){ var c = form.querySelector('[name=color]:checked'); return c ? c.value : ""; };
     function fillPieces(r, keep){
@@ -358,7 +403,10 @@ var MM = {
         '<select class="field" name="size" aria-label="Size">' + SIZES + '</select><button type="button" class="mm-x" aria-label="Remove">×</button><p class="mm-none" role="status"></p>';
       var who = r.querySelector("[name=who]"), grp = r.querySelector("[name=grp]");
       grp.value = st || roleSt[String(role || "").toLowerCase()] || store;
-      who.addEventListener("input", function(){ var g = roleSt[who.value.trim().toLowerCase()]; if (g && g !== grp.value) { grp.value = g; fillPieces(r); } });
+      // in Arabic or Urdu, show the role in that language (typed names stay as typed)
+      setTimeout(function(){ if (role && window.mmT) { var tv = mmT(role); if (tv && tv !== role) who.value = tv; } }, 500);
+      var findRole = function(v){ v = v.trim().toLowerCase(); if (roleSt[v]) return roleSt[v]; for (var i = 0; i < roles.length; i++) if (window.mmT && mmT(roles[i][0]).toLowerCase() === v) return roles[i][1]; return null; };
+      who.addEventListener("input", function(){ var g = findRole(who.value); if (g && g !== grp.value) { grp.value = g; fillPieces(r); } });
       grp.addEventListener("change", function(){ fillPieces(r); });
       r.querySelector("[name=piece]").addEventListener("change", function(){ fillColors(r); });
       r.querySelector(".mm-x").addEventListener("click", function(){ r.remove(); count(); });

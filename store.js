@@ -15,7 +15,7 @@
     return '<span class="sw-row" aria-label="Colors">' + vs.map(function(v, i){ return '<span class="sw' + ((cur ? v === cur : i === 0) ? " on" : "") + '" data-sw="' + i + '" title="' + esc(v.name) + '" style="' + swStyle(v) + '"></span>'; }).join("") + (vs.length > 1 ? '<span class="sw-n">' + vs.length + ' colors</span>' : '<span class="sw-n">' + esc(vs[0].name) + '</span>') + '</span>';
   }
   window.mmVariant = {list: vlist, find: vfind, photos: vph};
-  function badge(p){ return p.soldOut ? '<span class="badge sold">Sold out</span>' : p.badge ? '<span class="badge hot">' + esc(p.badge) + '</span>' : (p.fabric && FABRICS[p.fabric] ? '<span class="badge ready">' + FABRICS[p.fabric].name + '</span>' : ''); }
+  function badge(p, v){ if (v && v.soldOut && !p.soldOut) return '<span class="badge sold">Sold out</span>'; return p.soldOut ? '<span class="badge sold">Sold out</span>' : p.badge ? '<span class="badge hot">' + esc(p.badge) + '</span>' : (p.fabric && FABRICS[p.fabric] ? '<span class="badge ready">' + FABRICS[p.fabric].name + '</span>' : ''); }
   var KEY = "mamounia-cart-" + store;
 
   function esc(s){ return String(s).replace(/[&<>"]/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); }
@@ -34,7 +34,7 @@
     var href = "product.html?id=" + p.id + (cur ? "&color=" + encodeURIComponent(cur.name) : "");
     var a = photo(p, 0, cur), b = photo(p, 1, cur);
     return '<a class="card" href="' + href + '" data-pid="' + p.id + '">' +
-      '<div class="img">' + (a ? '<img class="pimg" src="' + a + '" alt="' + esc(p.name) + '" loading="lazy">' + (b ? '<img class="pimg alt" src="' + b + '" alt="" loading="lazy">' : '') : '<div class="ph">Photo · ' + esc(p.name) + '</div>') + badge(p) +
+      '<div class="img">' + (a ? '<img class="pimg" src="' + a + '" alt="' + esc(p.name) + '" loading="lazy">' + (b ? '<img class="pimg alt" src="' + b + '" alt="" loading="lazy">' : '') : '<div class="ph">Photo · ' + esc(p.name) + '</div>') + badge(p, v) +
       '<span class="qv-btn" role="button" tabindex="0" data-qv="' + p.id + '" aria-label="Quick view: ' + esc(p.name) + '" title="Quick view"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></span></div>' +
       '<span class="kind">' + (v ? esc(v.name) + ' · ' : '') + cats[p.cat] + ' · ' + SEASONS[p.season] + '</span>' +
       '<h3>' + esc(p.name) + '</h3><span class="price">' + money(p.price) + '</span>' + (withSw ? swatches(p, cur) : '') + '</a>';
@@ -346,7 +346,7 @@
         var b = e.target.closest(".swp"); if (!b) return;
         curV = vsP[+b.getAttribute("data-i")];
         colBox.querySelectorAll(".swp").forEach(function(x){ x.classList.toggle("on", x === b); x.setAttribute("aria-checked", x === b); });
-        colBox.querySelector("[data-cname]").textContent = curV.name; gallery(curV);
+        colBox.querySelector("[data-cname]").textContent = curV.name; gallery(curV); if (window.__mmStockUI) window.__mmStockUI();
         try { var u = new URL(location.href); u.searchParams.set("color", curV.name); history.replaceState(null, "", u); } catch(x){}
       });
       colBox.addEventListener("mouseover", function(e){ var b = e.target.closest(".swp"); if (b) colBox.querySelector("[data-cname]").textContent = vsP[+b.getAttribute("data-i")].name; });
@@ -356,9 +356,14 @@
       if (!(p.colors || []).length) colBox.hidden = true;
     }
     var size = null;
-    // Sizes that are sold out (from the admin's stock) can't be picked
-    if (p.sizesLeft) pp.querySelectorAll(".sizes button").forEach(function(b){ var n = p.sizesLeft[b.textContent]; if (n != null && n <= 0) { b.disabled = true; b.title = "Sold out"; } });
-    if (p.soldOut) { var ab = pp.querySelector("[data-add]"); ab.disabled = true; ab.textContent = "Sold out"; }
+    // Sizes that are sold out (from the admin's stock) can't be picked; with stock split by color, it follows the chosen color
+    function stockUI(){
+      var left = (curV && curV.sizesLeft) || p.sizesLeft, out = p.soldOut || (curV && curV.soldOut), ab = pp.querySelector("[data-add]");
+      pp.querySelectorAll(".sizes button").forEach(function(b){ var n = left ? (left[b.textContent] || 0) : null, gone = out || (n != null && n <= 0);
+        b.disabled = gone; b.title = gone ? "Sold out" : ""; if (gone && b.getAttribute("aria-pressed") === "true") { b.setAttribute("aria-pressed", "false"); size = null; } });
+      ab.disabled = !!out; ab.textContent = out ? (curV && curV.soldOut && !p.soldOut ? "Sold out in " + curV.name : "Sold out") : "Add to bag";
+    }
+    window.__mmStockUI = stockUI; stockUI();
     pp.querySelectorAll(".sizes button").forEach(function(b){
       b.addEventListener("click", function(){
         pp.querySelectorAll(".sizes button").forEach(function(x){ x.setAttribute("aria-pressed", "false"); });
@@ -545,14 +550,17 @@
       '<div class="bag-body qv-body"><div class="qv-main" data-qmain></div><div class="qv-thumbs" data-qthumbs></div>' +
       '<div class="qv-price">' + money(p.price) + '</div>' +
       (vs ? '<div class="qv-opt"><span class="opt-label">Color: <b data-qcn></b></span><div class="sw-pick">' + vs.map(function(v, i){ return '<button type="button" class="swp" data-qc="' + i + '" title="' + esc(v.name) + '" style="' + swStyle(v) + '"><span class="sr">' + esc(v.name) + '</span></button>'; }).join("") + '</div></div>' : '') +
-      '<div class="qv-opt"><span class="opt-label">Size</span><div class="sizes" role="group" aria-label="Size">' + QSIZES.map(function(z){ var gone = p.sizesLeft && p.sizesLeft[z] != null && p.sizesLeft[z] <= 0; return '<button type="button" aria-pressed="false" data-qs="' + z + '"' + (gone ? ' disabled title="Sold out"' : '') + '>' + z + '</button>'; }).join("") + '</div><p class="qv-msg" role="alert" data-qmsg></p></div></div>' +
-      '<div class="bag-foot"><button type="button" class="btn bag-go" data-qadd' + (p.soldOut ? ' disabled' : '') + '>' + (p.soldOut ? 'Sold out' : 'Add to bag') + '</button><a class="bag-view" data-qfull href="#">View full details</a></div>';
+      '<div class="qv-opt"><span class="opt-label">Size</span><div class="sizes" role="group" aria-label="Size">' + QSIZES.map(function(z){ var gone = false; return '<button type="button" aria-pressed="false" data-qs="' + z + '"' + (gone ? ' disabled title="Sold out"' : '') + '>' + z + '</button>'; }).join("") + '</div><p class="qv-msg" role="alert" data-qmsg></p></div></div>' +
+      '<div class="bag-foot"><button type="button" class="btn bag-go" data-qadd>Add to bag</button><a class="bag-view" data-qfull href="#">View full details</a></div>';
     function paint(){
       shown = vph(p, cur);
       var m = qv.querySelector("[data-qmain]"), t = qv.querySelector("[data-qthumbs]");
       m.innerHTML = shown.length ? '<img src="' + MM_IMG(shown[0]) + '" alt="' + esc(p.name) + '">' : '<div class="ph">Photo · ' + esc(p.name) + (cur ? ' · ' + esc(cur.name) : '') + '</div>';
       t.innerHTML = shown.length > 1 ? shown.slice(0, 5).map(function(id, i){ return '<button type="button" class="thumb' + (i === 0 ? " on" : "") + '" data-qt="' + i + '" aria-label="Photo ' + (i + 1) + '"><img src="' + MM_IMG(id) + '" alt=""></button>'; }).join("") : "";
       if (vs) { qv.querySelector("[data-qcn]").textContent = cur.name; qv.querySelectorAll("[data-qc]").forEach(function(b){ b.classList.toggle("on", vs[+b.getAttribute("data-qc")] === cur); }); }
+      var left = (cur && cur.sizesLeft) || p.sizesLeft, out = p.soldOut || (cur && cur.soldOut), qa = qv.querySelector("[data-qadd]");
+      qv.querySelectorAll("[data-qs]").forEach(function(b){ var n = left ? (left[b.getAttribute("data-qs")] || 0) : null, g = out || (n != null && n <= 0); b.disabled = g; b.title = g ? "Sold out" : ""; if (g && size === b.getAttribute("data-qs")) { size = null; b.setAttribute("aria-pressed", "false"); } });
+      qa.disabled = !!out; qa.textContent = out ? (cur && cur.soldOut && !p.soldOut ? "Sold out in " + cur.name : "Sold out") : "Add to bag";
       qv.querySelector("[data-qfull]").href = "product.html?id=" + encodeURIComponent(p.id) + (cur ? "&color=" + encodeURIComponent(cur.name) : "");
     }
     qv.onclick = function(e){
