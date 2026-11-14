@@ -1,0 +1,15 @@
+/* Men's store: deep green, gold and white. Strong, geometric, squared buttons, tall horseshoe arches */
+:root{
+  --bg:#FBF8F1; --surface:#FFFFFF; --soft:#F3EAD3; --line:#E6DCC4;
+  --ink:#1C2621; --muted:#4F5B55;
+  --primary:#0E4A36; --primary-dark:#0A3527; --on-primary:#FFFFFF; --on-dark:#D9E6DF;
+  --accent:#C9A24A; --accent-ink:#7A5A1C; --on-accent:#0A3527;
+  --hero-bg:#0E4A36; --summer-bg:#EADFC2;
+  --display:"Marcellus",Georgia,serif; --display-weight:400;
+  --btn-radius:2px; --field-radius:2px; --card-radius:2px;
+  --arch-outer:50% 50% 2px 2px / 34% 34% 2px 2px;
+  --arch-inner:50% 50% 1px 1px / 33% 33% 1px 1px;
+  --arch-gap:9px;
+}
+h1,h2{letter-spacing:.01em}
+.main-nav{letter-spacing:.12em}

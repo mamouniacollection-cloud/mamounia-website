@@ -1,0 +1,341 @@
+/* Mamounia features: Islamic-calendar seasons, DFW weather and comfort, prayer notes, size finder,
+   family sets, reserve & try at events, Eid gifts, masjid give-back, piece tags, and sending
+   website requests to the Mamounia Admin.
+   EDIT THE SETTINGS IN MM BELOW. */
+var MM = {
+  // The admin address is set once, in assets/site.js (MM_API).
+  API: window.MM_API || "",
+  CITY: {name: "Allen", lat: 33.1032, lon: -96.6706},
+  GIVE_BACK: "[X]%",          // share of each order given to the customer's masjid
+  FAMILY_DEAL: "[X]%",        // discount on family sets of 3 or more pieces
+  INSTAGRAM: "[INSTAGRAM LINK]",
+  MASJIDS: ["Islamic Association of Allen", "East Plano Islamic Center (EPIC)", "Plano Masjid", "IANT, Richardson",
+            "Islamic Center of Frisco", "Valley Ranch Islamic Center", "Islamic Center of Irving"],
+  // Shown on the "Find us" page when the admin isn't connected. With the admin connected,
+  // events ticked "Show on website" in the Events tab appear instead.
+  EVENTS: [],
+  // The store follows the Islamic calendar. Dates are expected dates and can move by a day.
+  SEASONS: [
+    {from: "2026-11-01", to: "2027-01-08", key: "winter", text: "Djellaba season in DFW. Ramadan begins in about {days:2027-02-08} days.", cta: ["Shop winter", "shop.html?season=winter"]},
+    {from: "2027-01-09", to: "2027-02-07", key: "preramadan", text: "Ramadan begins in {days:2027-02-08} days. Taraweeh pieces are in.", cta: ["Shop for Ramadan", "shop.html"]},
+    {from: "2027-02-08", to: "2027-03-03", key: "ramadan", text: "Ramadan Mubarak. Order by March 3 to have it before Eid: {left:2027-03-03T23:59:00-06:00}", cta: ["Shop Eid outfits", "shop.html"]},
+    {from: "2027-03-04", to: "2027-03-07", key: "pickup", text: "Too late for shipping? Reserve online and pick up in Allen before Eid.", cta: ["Reserve and pick up", "events.html"]},
+    {from: "2027-03-08", to: "2027-03-08", key: "chandraat", text: "Chand Raat tonight: last-minute Eid outfits, pick up in Allen.", cta: ["Reserve now", "events.html"]},
+    {from: "2027-03-09", to: "2027-03-11", key: "eid", text: "Eid Mubarak from Mamounia. Share your Eid photos with #MamouniaEid", cta: ["Shop the collection", "shop.html"]},
+    {from: "2027-03-12", to: "2027-05-06", key: "spring", text: "Wedding and henna season. Dress the whole family in one color.", cta: ["Build a family set", "family.html"]},
+    {from: "2027-05-07", to: "2027-05-11", key: "dhulhijjah", text: "The best ten days. Order by May 11 for Eid al-Adha: {left:2027-05-11T23:59:00-05:00}", cta: ["Shop for Eid", "shop.html"]},
+    {from: "2027-05-12", to: "2027-05-15", key: "pickup", text: "Eid al-Adha is close. Reserve online and pick up in Allen.", cta: ["Reserve and pick up", "events.html"]},
+    {from: "2027-05-16", to: "2027-05-18", key: "eid", text: "Eid al-Adha Mubarak from Mamounia.", cta: ["Send an Eid gift", "gift.html"]},
+    {from: "2027-05-19", to: "2027-09-30", key: "summer", text: "Summer in DFW: light gandouras, linen and crepe.", cta: ["Shop summer", "shop.html?season=summer"]},
+    {from: "2027-10-01", to: "2027-12-31", key: "winter", text: "Djellaba season is back. Ramadan begins around January 28.", cta: ["Shop winter", "shop.html?season=winter"]}
+  ],
+  // Notes for the person who prays in it. Edit per category.
+  PRAY: {
+    men: {djellaba: ["Hooded, for cool walks to Fajr", "Loose cut for ruku' and sujood"],
+          gandoura: ["Short, wide sleeves: wudu without rolling up", "Light and loose for Jumu'ah in the heat"],
+          jabador: ["Two pieces: tunic and serwal pants", "Loose cut for ruku' and sujood"],
+          jacket: ["Layers over a thobe or jabador on cold mornings"]},
+    women: {djellaba: ["Hooded and full length", "Loose cut that stays modest in sujood"],
+            kaftan: ["Full length, loose cut", "Made for Eid, weddings and henna nights"],
+            kimono: ["Two pieces: top and pants", "Easy to pray in at events"],
+            abaya: ["Full length and loose", "Pairs with any hijab"],
+            jabador: ["Two pieces: tunic and pants"]}
+  },
+  // When each fabric is comfortable in DFW (months 1-12) and its comfortable temperature range (°F).
+  COMFORT: {
+    gabardine: {m: [3,4,5,6,7,8,9,10], lo: 65, hi: 95}, striped: {m: [3,4,5,9,10,11], lo: 58, hi: 88},
+    sousdi: {m: [10,11,12,1,2,3,4], lo: 45, hi: 75}, jim: {m: [4,5,6,7,8,9,10], lo: 65, hi: 95},
+    linen: {m: [5,6,7,8,9], lo: 75, hi: 100}, melifa: {m: [11,12,1,2,3], lo: 35, hi: 68},
+    bouclette: {m: [12,1,2], lo: 25, hi: 55}, suede: {m: [11,12,1,2], lo: 35, hi: 65},
+    crepe: {m: [3,4,5,6,7,8,9,10,11], lo: 55, hi: 95}, mobra: {m: [11,12,1,2,3], lo: 40, hi: 70}
+  },
+  // Starting size guide by height (inches). It gets better as customers send "how it fit" reports.
+  FIT: {men: [["S", 0, 65], ["M", 65, 69], ["L", 69, 72], ["XL", 72, 75], ["XXL", 75, 99]],
+        women: [["S", 0, 61], ["M", 61, 64], ["L", 64, 67], ["XL", 67, 70], ["XXL", 70, 99]]},
+  HEAVY: {men: 210, women: 180}   // above this weight (lb), suggest one size up
+};
+
+// Settings from the admin's Website design tab win over the defaults above
+(function(s){ if (!s) return;
+  if (s.give_back) MM.GIVE_BACK = s.give_back; if (s.family_deal) MM.FAMILY_DEAL = s.family_deal;
+  if (s.instagram) MM.INSTAGRAM = s.instagram; if (s.city) MM.CITY.name = s.city;
+})(window.MM_SETTINGS);
+
+(function(){
+  var store = document.body.getAttribute("data-store"); if (!store) return;
+  var $ = function(s, r){ return (r || document).querySelector(s); };
+  var esc = function(s){ return String(s == null ? "" : s).replace(/[&<>"]/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); };
+  var items = PRODUCTS[store].filter(function(p){ return !p.hidden; }), cats = CATS[store];
+  var MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  var params = new URLSearchParams(location.search);
+  function today(){ var d = new Date(); return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2); }
+  function findAny(id){ var all = PRODUCTS.men.concat(PRODUCTS.women); for (var i = 0; i < all.length; i++) if (all[i].id === id) return all[i]; return null; }
+  function storeOf(id){ return /^m/.test(id) ? "men" : "women"; }
+
+  /* ---------- sending to the admin ---------- */
+  function send(type, data){
+    var body = JSON.stringify({type: type, store: store, page: location.pathname.split("/").pop(), data: data});
+    if (!MM.API) { try { console.warn("Mamounia: set MM.API in assets/extra.js so website requests reach the admin.", body); } catch(e){} return Promise.resolve({ok: true, offline: true}); }
+    return fetch(MM.API.replace(/\/$/, "") + "/api/public/request", {method: "POST", headers: {"Content-Type": "application/json"}, body: body})
+      .then(function(r){ return r.json().catch(function(){ return {}; }).then(function(j){ return {ok: r.ok, error: j.error}; }); })
+      .catch(function(){ return {ok: false, error: "We couldn't send that. Check your connection and try again."}; });
+  }
+  window.mmSend = send;
+  function formData(f){ var o = {}; new FormData(f).forEach(function(v, k){ if (typeof v === "string" && v.trim()) o[k] = o[k] ? o[k] + ", " + v : v.trim(); }); return o; }
+  // Newsletter sign-ups and the made-to-order form go to the admin too
+  document.addEventListener("submit", function(e){
+    var f = e.target;
+    if (f.hasAttribute("data-nl-form")) { var em = f.querySelector("input[type=email]"); if (em && em.value) send("newsletter", {email: em.value}); }
+    if (f.getAttribute("data-demo") === "mto-done") send("custom", formData(f));
+  }, true);
+
+  /* ---------- 1. the Islamic-calendar season ---------- */
+  var t = today(), season = null;
+  MM.SEASONS.forEach(function(s){ if (t >= s.from && t <= s.to) season = s; });
+  function fill(text){
+    return text.replace(/\{days:([\d-]+)\}/g, function(_, d){ return Math.max(0, Math.ceil((new Date(d + "T00:00:00") - new Date()) / 864e5)); })
+               .replace(/\{left:([^}]+)\}/g, function(_, d){ return '<b class="mm-left" data-until="' + d + '"></b>'; });
+  }
+  function tick(){
+    document.querySelectorAll(".mm-left").forEach(function(el){
+      var ms = new Date(el.getAttribute("data-until")) - new Date();
+      if (ms <= 0) { el.textContent = "closed"; return; }
+      var d = Math.floor(ms / 864e5), h = Math.floor(ms % 864e5 / 36e5), m = Math.floor(ms % 36e5 / 6e4);
+      el.textContent = (d ? d + "d " : "") + h + "h " + ("0" + m).slice(-2) + "m left";
+    });
+  }
+  if (season) {
+    document.body.classList.add("season-" + season.key);
+    var ann = $(".announce .ann-row > span");
+    if (ann) ann.innerHTML = '<span class="mm-season">' + fill(season.text) + '</span> <a class="mm-season-cta" href="' + season.cta[1] + '">' + esc(season.cta[0]) + ' →</a>';
+    tick(); setInterval(tick, 30000);
+  }
+  // A "this season" edit on the home page
+  var slot = $("[data-season-slot]");
+  if (slot && season) {
+    var want = {ramadan: ["abaya","jabador","kaftan","gandoura","kimono"], preramadan: ["abaya","jabador","kaftan","gandoura"], pickup: null, chandraat: null, eid: null,
+                dhulhijjah: null, spring: ["kaftan","kimono","gandoura","jabador"], summer: "summer", winter: "winter"}[season.key];
+    var list = items.filter(function(p){ return want === "summer" ? p.season !== "winter" : want === "winter" ? p.season !== "summer" : want ? want.indexOf(p.cat) > -1 : true; }).slice(0, 4);
+    var title = {winter: "Djellaba weather", preramadan: "Ready for Ramadan", ramadan: "For taraweeh and Eid", pickup: "Still time for Eid", chandraat: "Chand Raat picks", eid: "Eid Mubarak", spring: "For weddings and henna nights", dhulhijjah: "For Eid al-Adha", summer: "Made for DFW summers"}[season.key];
+    slot.innerHTML = '<div class="wrap"><div class="row-head"><div><span class="eyebrow">This season</span><h2>' + esc(title) + '</h2><p class="muted mm-season-sub">' + fill(season.text) + '</p></div><a class="btn ghost" href="' + season.cta[1] + '">' + esc(season.cta[0]) + '</a></div><div class="grid" data-season-grid></div></div>';
+    var g = $("[data-season-grid]");
+    g.innerHTML = list.map(function(p){
+      var ph = p.photos && p.photos[0] ? '<img class="pimg" src="' + MM_IMG(p.photos[0]) + '" alt="' + esc(p.name) + '" loading="lazy">' : '<div class="ph">Photo · ' + esc(p.name) + '</div>';
+      return '<a class="card" href="product.html?id=' + p.id + '"><div class="img">' + ph + '</div><span class="kind">' + esc(cats[p.cat]) + '</span><h3>' + esc(p.name) + '</h3><span class="price">' + (p.price == null ? "[PRICE]" : "$" + p.price) + '</span></a>';
+    }).join("");
+    slot.hidden = false; tick();
+  }
+
+  /* ---------- 3. DFW weather ---------- */
+  function weather(){
+    if (weather.p) return weather.p;
+    weather.p = fetch("https://api.open-meteo.com/v1/forecast?latitude=" + MM.CITY.lat + "&longitude=" + MM.CITY.lon + "&current=temperature_2m&temperature_unit=fahrenheit&timezone=America%2FChicago")
+      .then(function(r){ return r.json(); }).then(function(j){ return Math.round(j.current.temperature_2m); }).catch(function(){ return null; });
+    return weather.p;
+  }
+  var wx = $("[data-weather]");
+  if (wx) weather().then(function(tf){
+    if (tf == null) return;
+    var mine = {}; items.forEach(function(p){ if (MM.COMFORT[p.fabric]) mine[p.fabric] = true; });
+    var fits = Object.keys(mine).filter(function(k){ var c = MM.COMFORT[k]; return tf >= c.lo && tf <= c.hi; });
+    var pick = fits.sort(function(a, b){ return (MM.COMFORT[a].hi - MM.COMFORT[a].lo) - (MM.COMFORT[b].hi - MM.COMFORT[b].lo); })[0];
+    var name = pick ? FABRICS[pick].name : null;
+    wx.innerHTML = '<div class="wrap mm-wx-row"><span class="mm-temp">' + tf + '°F</span><span>Right now in ' + esc(MM.CITY.name) + '. ' +
+      (name ? '<b>' + esc(name) + ' weather.</b>' : '<b>Layer up or keep it light.</b>') + '</span>' +
+      (pick ? '<a href="shop.html?fabric=' + pick + '">Shop ' + esc(name) + ' →</a>' : '') + '</div>';
+    wx.hidden = false;
+  });
+
+  /* ---------- product page: prayer notes, DFW comfort, size finder, reserve / gift links ---------- */
+  var pp = $("[data-product]");
+  if (pp) {
+    var p = (function(){ var id = params.get("id"); for (var i = 0; i < items.length; i++) if (items[i].id === id) return items[i]; return items[0]; })();
+    var box = document.createElement("div"); box.className = "mm-extras";
+    var notes = (MM.PRAY[store] || {})[p.cat] || [];
+    var c = MM.COMFORT[p.fabric];
+    var h = "";
+    if (notes.length) h += '<div class="mm-pray"><span class="opt-label">Made for prayer</span><ul>' + notes.map(function(n){ return "<li>" + esc(n) + "</li>"; }).join("") + "</ul></div>";
+    if (c) {
+      var now = new Date().getMonth() + 1;
+      h += '<div class="mm-comfort"><span class="opt-label">Comfortable in DFW</span><div class="mm-months">' + MONTHS.map(function(m, i){
+        return '<span class="' + (c.m.indexOf(i + 1) > -1 ? "on" : "") + (i + 1 === now ? " now" : "") + '" title="' + m + '">' + m.charAt(0) + '</span>'; }).join("") +
+        '</div><p class="mm-wx-line" data-wx-line hidden></p></div>';
+    }
+    h += '<div class="mm-links"><a href="events.html?item=' + p.id + '">Reserve it and try it on at our next pop-up →</a><a href="gift.html?item=' + p.id + '">Send it as an Eid gift →</a><a href="family.html?item=' + p.id + '">Match it with the family →</a></div>';
+    box.innerHTML = h;
+    var add = pp.querySelector("[data-add]"); add.parentNode.insertBefore(box, add.nextSibling);
+    if (c) weather().then(function(tf){
+      if (tf == null) return; var el = pp.querySelector("[data-wx-line]");
+      el.textContent = "Right now in " + MM.CITY.name + ": " + tf + "°F. " + (tf < c.lo ? "A bit cold for this fabric today; layer up." : tf > c.hi ? "Warm for this fabric today." : "A good day to wear it.");
+      el.hidden = false;
+    });
+    // Size finder, added to the size guide
+    var guide = pp.querySelector(".acc");
+    if (guide) {
+      var sf = document.createElement("details"); sf.className = "acc mm-finder"; sf.open = false;
+      sf.innerHTML = '<summary>Find my size</summary><div><form class="mm-fit-form"><label class="lbl">Height<span class="mm-hw"><input class="field" name="ft" type="number" min="4" max="7" placeholder="ft" aria-label="Feet"><input class="field" name="in" type="number" min="0" max="11" placeholder="in" aria-label="Inches"></span></label>' +
+        '<label class="lbl">Weight (lb)<input class="field" name="lb" type="number" min="60" max="400" placeholder="lb"></label><button class="btn" type="submit">Suggest my size</button></form><p class="mm-fit-out" role="status"></p>' +
+        '<p class="muted small">This guide starts from height and gets more accurate as customers tell us how their piece fit.</p></div>';
+      guide.parentNode.insertBefore(sf, guide);
+      sf.querySelector("form").addEventListener("submit", function(e){
+        e.preventDefault(); var f = e.target;
+        var inches = (+f.ft.value || 0) * 12 + (+f.in.value || 0), lb = +f.lb.value || 0, out = sf.querySelector(".mm-fit-out");
+        if (!inches) { out.textContent = "Enter your height."; return; }
+        var chart = MM.FIT[store], idx = 0;
+        chart.forEach(function(r, i){ if (inches >= r[1] && inches < r[2]) idx = i; });
+        if (lb && lb > MM.HEAVY[store] && idx < chart.length - 1) idx++;
+        out.innerHTML = 'We suggest <b>' + chart[idx][0] + '</b>.' + (lb > MM.HEAVY[store] ? ' We went one size up for a comfortable fit across the shoulders.' : '');
+        pp.querySelectorAll(".sizes button").forEach(function(b){ if (b.textContent === chart[idx][0]) b.click(); });
+      });
+    }
+  }
+
+  /* ---------- cart: masjid give-back and order requests ---------- */
+  var sum = $(".cart .summary");
+  if (sum) {
+    var mk = "mamounia-masjid";
+    var saved = ""; try { saved = localStorage.getItem(mk) || ""; } catch(e){}
+    var gb = document.createElement("div"); gb.className = "mm-give";
+    gb.innerHTML = '<label class="opt-label" for="mm-masjid">Support your masjid</label><select id="mm-masjid" class="field"><option value="">Choose a masjid</option>' +
+      MM.MASJIDS.map(function(m){ return '<option' + (m === saved ? " selected" : "") + '>' + esc(m) + '</option>'; }).join("") + '<option value="Other">Another masjid</option></select>' +
+      '<p class="muted small">We give ' + esc(MM.GIVE_BACK) + ' of every order to the masjid you choose.</p>';
+    var btn = sum.querySelector("[data-checkout]"); sum.insertBefore(gb, btn);
+    gb.querySelector("select").addEventListener("change", function(e){ try { localStorage.setItem(mk, e.target.value); } catch(x){} });
+    var of = document.createElement("form"); of.className = "mm-order"; of.hidden = true;
+    of.innerHTML = '<p class="small">Leave your details. We confirm stock and send you a secure payment link, usually the same day.</p>' +
+      '<input class="field" name="name" required placeholder="Full name" aria-label="Full name"><input class="field" name="phone" type="tel" required placeholder="Phone or WhatsApp" aria-label="Phone"><input class="field" name="email" type="email" placeholder="Email (optional)" aria-label="Email">' +
+      '<input class="field" name="address" placeholder="Shipping address, or write: pickup in Allen" aria-label="Address"><input class="field" name="height" placeholder="Your height and weight (optional, helps us check the size)" aria-label="Height and weight">' +
+      '<button class="btn" type="submit">Send my order</button><p class="mm-err" role="alert"></p>';
+    sum.insertBefore(of, btn.nextSibling);
+    btn.addEventListener("click", function(e){ e.stopImmediatePropagation(); of.hidden = false; btn.hidden = true; var m = $("[data-checkout-msg]"); if (m) m.textContent = ""; of.querySelector("input").focus(); }, true);
+    of.addEventListener("submit", function(e){
+      e.preventDefault();
+      var cart = []; try { cart = JSON.parse(localStorage.getItem("mamounia-cart-" + store)) || []; } catch(x){ cart = window.__cart || []; }
+      if (!cart.length) return;
+      var d = formData(of);
+      d.items = cart.map(function(it){ var q = findAny(it.id) || {name: it.id}; return it.qty + "× " + q.name + " (size " + it.size + (it.color ? ", " + it.color : "") + ")"; }).join("; ");
+      d.masjid = gb.querySelector("select").value || "";
+      of.querySelector("button").disabled = true;
+      send("order", d).then(function(r){
+        if (!r.ok) { of.querySelector(".mm-err").textContent = r.error || "Couldn't send. Try again."; of.querySelector("button").disabled = false; return; }
+        try { localStorage.removeItem("mamounia-cart-" + store); } catch(x){}
+        window.__cart = [];
+        $("[data-cart]").innerHTML = '<div class="done" style="display:block"><h2>Order received</h2><p class="muted">Thank you, ' + esc(d.name) + '. We will message you at ' + esc(d.phone) + ' to confirm and send your payment link.</p></div>';
+        of.hidden = true; document.querySelectorAll(".cart-count").forEach(function(el){ el.textContent = "0"; el.setAttribute("data-n", "0"); });
+      });
+    });
+  }
+
+  /* ---------- shared bits for the new pages ---------- */
+  function productOptions(st, sel){
+    var cs = CATS[st];
+    return PRODUCTS[st].map(function(p){ return '<option value="' + p.id + '"' + (p.id === sel ? " selected" : "") + '>' + esc(p.name) + ' · ' + esc(cs[p.cat]) + '</option>'; }).join("");
+  }
+  var SIZES = '<option value="">Size</option><option>S</option><option>M</option><option>L</option><option>XL</option><option>XXL</option><option value="Not sure">Not sure</option>';
+  function wire(form, type, collect, done){
+    form.addEventListener("submit", function(e){
+      e.preventDefault();
+      var d = formData(form); if (collect) collect(d);
+      var b = form.querySelector("button[type=submit]"); b.disabled = true;
+      send(type, d).then(function(r){
+        b.disabled = false;
+        if (!r.ok) { form.querySelector(".mm-err").textContent = r.error || "Couldn't send. Try again."; return; }
+        form.hidden = true; var el = document.getElementById(done); el.hidden = false; el.style.display = "block"; el.scrollIntoView({block: "center", behavior: "smooth"});
+      });
+    });
+  }
+
+  /* ---------- 4. Family sets ---------- */
+  var fam = $("[data-family]");
+  if (fam) {
+    var roles = [["Father", "men"], ["Mother", "women"], ["Son", "men"], ["Daughter", "women"], ["Grandfather", "men"], ["Grandmother", "women"]];
+    var colors = [["White", "#F7F5EF"], ["Cream", "#EFE3C8"], ["Sand", "#D8C3A0"], ["Sea green", "#8FC3B5"], ["Emerald", "#0E4A36"], ["Navy", "#1F2F5A"], ["Burgundy", "#7A2234"], ["Black", "#1A1A1A"]];
+    var first = params.get("item");
+    var rows = $("[data-members]", fam);
+    function addRow(role, st, item){
+      var r = document.createElement("div"); r.className = "mm-member";
+      r.innerHTML = '<select class="field" name="who" aria-label="Who">' + roles.map(function(x){ return '<option data-st="' + x[1] + '"' + (x[0] === role ? " selected" : "") + '>' + x[0] + '</option>'; }).join("") + '</select>' +
+        '<select class="field" name="piece" aria-label="Piece"></select><select class="field" name="size" aria-label="Size">' + SIZES + '</select><button type="button" class="mm-x" aria-label="Remove">×</button>';
+      var who = r.querySelector('[name=who]'), piece = r.querySelector('[name=piece]');
+      function sync(sel){ var s = who.selectedOptions[0].getAttribute("data-st"); piece.innerHTML = productOptions(s, sel); }
+      who.addEventListener("change", function(){ sync(); count(); }); sync(item);
+      r.querySelector(".mm-x").addEventListener("click", function(){ r.remove(); count(); });
+      rows.appendChild(r); count();
+    }
+    function count(){ var n = rows.children.length; $("[data-fam-count]", fam).textContent = n + (n === 1 ? " piece" : " pieces") + (n >= 3 ? " · family set price applies (" + MM.FAMILY_DEAL + " off)" : " · add " + (3 - n) + " more for the family set price"); }
+    $("[data-colors]", fam).innerHTML = colors.map(function(c, i){ return '<label class="mm-swatch"><input type="radio" name="color" value="' + c[0] + '"' + (i === 0 ? " checked" : "") + '><span style="background:' + c[1] + '"></span><em>' + c[0] + '</em></label>'; }).join("");
+    $("[data-add-member]", fam).addEventListener("click", function(){ addRow(storeOf(first || "m") === "men" ? "Son" : "Daughter"); });
+    var fs = first ? storeOf(first) : store;
+    addRow(fs === "men" ? "Father" : "Mother", fs, first); addRow(fs === "men" ? "Mother" : "Father", fs === "men" ? "women" : "men"); addRow(fs === "men" ? "Son" : "Daughter", fs);
+    wire($("form", fam), "family", function(d){
+      d.pieces = Array.prototype.map.call(rows.children, function(r){ var pc = findAny(r.querySelector("[name=piece]").value); return r.querySelector("[name=who]").value + ": " + (pc ? pc.name : "") + " (" + (r.querySelector("[name=size]").value || "size?") + ")"; }).join("; ");
+      delete d.who; delete d.piece; delete d.size;
+    }, "fam-done");
+  }
+
+  /* ---------- 5. Find us + reserve and try ---------- */
+  var ev = $("[data-events]");
+  if (ev) {
+    function show(list){
+      var up = (list || []).filter(function(x){ return x.date >= today(); }).sort(function(a, b){ return a.date < b.date ? -1 : 1; });
+      var sel = $("[name=event]", ev.parentNode);
+      if (!up.length) { ev.innerHTML = '<div class="empty">Our next pop-up dates are coming soon. Join the newsletter to hear first, or reserve below for pickup in ' + esc(MM.CITY.name) + '.</div>'; }
+      else ev.innerHTML = up.map(function(x){ var d = new Date(x.date + "T12:00:00");
+        return '<div class="mm-ev"><div class="mm-ev-date"><b>' + d.getDate() + '</b><span>' + MONTHS[d.getMonth()] + '</span></div><div><h3>' + esc(x.name) + '</h3><p class="muted">' + esc(x.place || "") + '</p></div></div>'; }).join("");
+      if (sel) sel.innerHTML = up.map(function(x){ return '<option>' + esc(x.name + " · " + new Date(x.date + "T12:00:00").toLocaleDateString("en-US", {month: "short", day: "numeric"})) + '</option>'; }).join("") + '<option>Pickup in ' + esc(MM.CITY.name) + ' (we will text you a time)</option>';
+    }
+    if (MM.API) fetch(MM.API.replace(/\/$/, "") + "/api/public/events").then(function(r){ return r.json(); }).then(show).catch(function(){ show(MM.EVENTS); }); else show(MM.EVENTS);
+    var rf = $("[data-reserve]");
+    var rrows = $("[data-res-items]", rf);
+    function resRow(item){
+      if (rrows.children.length >= 4) return;
+      var r = document.createElement("div"); r.className = "mm-member";
+      r.innerHTML = '<select class="field" name="r_store" aria-label="Store"><option value="men">Men</option><option value="women">Women</option></select><select class="field" name="r_piece" aria-label="Piece"></select><select class="field" name="r_size" aria-label="Size">' + SIZES + '</select><button type="button" class="mm-x" aria-label="Remove">×</button>';
+      var st = r.querySelector("[name=r_store]"), pc = r.querySelector("[name=r_piece]");
+      st.value = item ? storeOf(item) : store; pc.innerHTML = productOptions(st.value, item);
+      st.addEventListener("change", function(){ pc.innerHTML = productOptions(st.value); });
+      r.querySelector(".mm-x").addEventListener("click", function(){ r.remove(); });
+      rrows.appendChild(r);
+    }
+    resRow(params.get("item"));
+    $("[data-res-add]", rf).addEventListener("click", function(){ resRow(); });
+    wire(rf, "reserve", function(d){
+      d.pieces = Array.prototype.map.call(rrows.children, function(r){ var x = findAny(r.querySelector("[name=r_piece]").value); return (x ? x.name : "") + " (" + (r.querySelector("[name=r_size]").value || "size?") + ")"; }).join("; ");
+      delete d.r_store; delete d.r_piece; delete d.r_size;
+    }, "res-done");
+  }
+
+  /* ---------- 7. Eid gifts ---------- */
+  var gf = $("[data-gift]");
+  if (gf) {
+    var gp = $("[name=item]", gf), gst = $("[name=gstore]", gf);
+    var gi = params.get("item"); gst.value = gi ? storeOf(gi) : store; gp.innerHTML = productOptions(gst.value, gi);
+    gst.addEventListener("change", function(){ gp.innerHTML = productOptions(gst.value); });
+    var lt = $("[name=lang]", gf), msg = $("[name=message]", gf);
+    var ph = {English: "Eid Mubarak! Wishing you a blessed Eid.", Arabic: "عيد مبارك، وكل عام وأنتم بخير", Urdu: "عید مبارک! اللہ آپ کو خوش رکھے"};
+    lt.addEventListener("change", function(){ msg.placeholder = ph[lt.value]; msg.dir = lt.value === "English" ? "ltr" : "rtl"; });
+    wire(gf, "gift", function(d){ var x = findAny(d.item); d.item = x ? x.name : d.item; delete d.gstore; }, "gift-done");
+  }
+
+  /* ---------- 9. Piece tag page ---------- */
+  var pc = $("[data-piece]");
+  if (pc) {
+    var id = params.get("id"), x = findAny(id) || items[0], xs = storeOf(x.id), f = FABRICS[x.fabric] || {name: ""};
+    $("[data-piece-name]").textContent = x.name;
+    $("[data-piece-meta]").textContent = CATS[xs][x.cat] + (f.name ? " · " + f.name : "") + " · Made in " + (x.origin || "Morocco");
+    if (x.photos && x.photos[0]) $("[data-piece-photo]").outerHTML = '<img class="pimg" src="' + MM_IMG(x.photos[0]) + '" alt="' + esc(x.name) + '">'; else $("[data-piece-photo]").textContent = "Photo · " + x.name;
+    var care = {
+      en: ["Hand wash cold with mild soap.", "Dry flat, out of direct sun.", "Iron on low, inside out.", "Store folded; heavy pieces stretch on a hanger."],
+      ar: ["اغسل يدويًا بماء بارد وصابون لطيف.", "جففه مفرودًا بعيدًا عن الشمس المباشرة.", "اكوِه على حرارة منخفضة من الداخل.", "احفظه مطويًا، فالقطع الثقيلة تتمدد على العلاقة."],
+      ur: ["ہلکے صابن اور ٹھنڈے پانی میں ہاتھ سے دھوئیں۔", "سیدھا پھیلا کر، دھوپ سے دور سکھائیں۔", "اندر کی طرف سے ہلکی آنچ پر استری کریں۔", "تہہ کر کے رکھیں، بھاری کپڑے ہینگر پر کھنچ جاتے ہیں۔"]
+    };
+    var tabs = $("[data-care-tabs]"), list = $("[data-care]");
+    function careIn(l){ list.innerHTML = care[l].map(function(s){ return "<li>" + esc(s) + "</li>"; }).join(""); list.dir = l === "en" ? "ltr" : "rtl"; list.setAttribute("data-no-i18n", "");
+      tabs.querySelectorAll("button").forEach(function(b){ b.setAttribute("aria-pressed", b.getAttribute("data-l") === l ? "true" : "false"); }); }
+    tabs.addEventListener("click", function(e){ var b = e.target.closest("button"); if (b) careIn(b.getAttribute("data-l")); });
+    careIn("en");
+    var ff = $("[data-fit]");
+    wire(ff, "fit", function(d){ d.piece = x.name; }, "fit-done");
+    var ig = $("[data-ig]"); if (ig) ig.href = MM.INSTAGRAM;
+  }
+})();

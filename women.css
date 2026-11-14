@@ -1,0 +1,18 @@
+/* Women's store: deep rose, blush, ivory and gold. Soft, elegant, rounded arches and pill buttons */
+:root{
+  --bg:#FFF9F7; --surface:#FFFFFF; --soft:#F8E7EB; --line:#EFD9DE;
+  --ink:#2B1D22; --muted:#6B555B;
+  --primary:#8C3B5A; --primary-dark:#5E2339; --on-primary:#FFFFFF; --on-dark:#F6DDE5;
+  --accent:#C9A24A; --accent-ink:#8A5B22; --on-accent:#3A1A26;
+  --hero-bg:#8C3B5A; --summer-bg:#FBEBDD;
+  --display:"Cormorant Garamond",Georgia,serif; --display-weight:500;
+  --btn-radius:999px; --field-radius:14px; --card-radius:18px;
+  --arch-outer:999px 999px 18px 18px;
+  --arch-inner:999px 999px 12px 12px;
+  --arch-gap:10px;
+}
+h1,h2{font-style:italic}
+h1{font-size:clamp(46px,6vw,74px)}
+h2{font-size:clamp(34px,3.8vw,50px)}
+.logo-word{letter-spacing:.24em}
+.card h3{font-size:24px}
