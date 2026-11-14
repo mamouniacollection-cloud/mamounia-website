@@ -66,6 +66,7 @@ var MM = {
   function today(){ var d = new Date(); return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2); }
   function findAny(id){ var all = PRODUCTS.men.concat(PRODUCTS.women); for (var i = 0; i < all.length; i++) if (all[i].id === id) return all[i]; return null; }
   function storeOf(id){ return /^m/.test(id) ? "men" : "women"; }
+  function firstPhoto(p){ var v = p.variants && p.variants[0]; return (v && v.photos && v.photos[0]) || (p.photos && p.photos[0]) || null; }
 
   /* ---------- sending to the admin ---------- */
   function send(type, data){
@@ -114,10 +115,7 @@ var MM = {
     var title = {winter: "Djellaba weather", preramadan: "Ready for Ramadan", ramadan: "For taraweeh and Eid", pickup: "Still time for Eid", chandraat: "Chand Raat picks", eid: "Eid Mubarak", spring: "For weddings and henna nights", dhulhijjah: "For Eid al-Adha", summer: "Made for DFW summers"}[season.key];
     slot.innerHTML = '<div class="wrap"><div class="row-head"><div><span class="eyebrow">This season</span><h2>' + esc(title) + '</h2><p class="muted mm-season-sub">' + fill(season.text) + '</p></div><a class="btn ghost" href="' + season.cta[1] + '">' + esc(season.cta[0]) + '</a></div><div class="grid" data-season-grid></div></div>';
     var g = $("[data-season-grid]");
-    g.innerHTML = list.map(function(p){
-      var ph = p.photos && p.photos[0] ? '<img class="pimg" src="' + MM_IMG(p.photos[0]) + '" alt="' + esc(p.name) + '" loading="lazy">' : '<div class="ph">Photo · ' + esc(p.name) + '</div>';
-      return '<a class="card" href="product.html?id=' + p.id + '"><div class="img">' + ph + '</div><span class="kind">' + esc(cats[p.cat]) + '</span><h3>' + esc(p.name) + '</h3><span class="price">' + (p.price == null ? "[PRICE]" : "$" + p.price) + '</span></a>';
-    }).join("");
+    g.innerHTML = list.map(function(p){ return window.mmCard(p, null, true); }).join("");
     slot.hidden = false; tick();
   }
 
@@ -326,13 +324,13 @@ var MM = {
     document.querySelector(".site-header").appendChild(panel);
     var inp = panel.querySelector("input"), res = panel.querySelector(".mm-s-res");
     var CN = {men: "Men's", women: "Women's"};
-    function match(p, qq){ var cs = CATS[storeOf(p.id)]; var hay = [p.name, cs[p.cat], (FABRICS[p.fabric] || {}).name, SEASONS[p.season], (p.colors || []).join(" "), p.note, p.badge].join(" ").toLowerCase();
+    function match(p, qq){ var cs = CATS[storeOf(p.id)]; var hay = [p.name, cs[p.cat], (FABRICS[p.fabric] || {}).name, SEASONS[p.season], (p.colors || []).concat((p.variants || []).map(function(v){ return v.name; })).join(" "), p.note, p.badge].join(" ").toLowerCase();
       return qq.split(/\s+/).filter(Boolean).every(function(w){ return hay.indexOf(w.replace(/s$/, "")) > -1; }); }
     function runSearch(){
       var qq = inp.value.trim().toLowerCase(); if (!qq) { res.innerHTML = ""; return; }
       var mine = PRODUCTS[store].filter(function(p){ return !p.hidden && match(p, qq); });
       var other = store === "men" ? "women" : "men", theirs = PRODUCTS[other].filter(function(p){ return !p.hidden && match(p, qq); });
-      var row = function(p){ var ph = p.photos && p.photos[0] ? '<img src="' + MM_IMG(p.photos[0]) + '" alt="">' : '<span class="mm-s-ph"></span>';
+      var row = function(p){ var fp = firstPhoto(p), ph = fp ? '<img src="' + MM_IMG(fp) + '" alt="">' : '<span class="mm-s-ph"></span>';
         return '<a class="mm-s-item" href="product.html?id=' + p.id + '">' + ph + '<span><b>' + esc(p.name) + '</b><em>' + esc(CATS[storeOf(p.id)][p.cat]) + (p.price != null ? ' · $' + p.price : '') + '</em></span></a>'; };
       res.innerHTML = (mine.length ? '<div class="mm-s-grid">' + mine.slice(0, 6).map(row).join("") + '</div><a class="mm-s-all" href="shop.html?q=' + encodeURIComponent(inp.value.trim()) + '">' + (mine.length === 1 ? 'See it in the shop' : 'See all ' + mine.length + ' results') + ' →</a>'
         : '<p class="muted">Nothing in the ' + CN[store] + ' store for “' + esc(inp.value.trim()) + '”.</p>') +
@@ -348,6 +346,22 @@ var MM = {
     document.addEventListener("keydown", function(e){ if (e.key === "Escape" && !panel.hidden) closeS(); if (e.key === "/" && panel.hidden && !/INPUT|TEXTAREA|SELECT/.test((document.activeElement || {}).tagName || "")) { e.preventDefault(); openS(); } });
     document.addEventListener("click", function(e){ if (!panel.hidden && !panel.contains(e.target) && !sBtn.contains(e.target)) closeS(); });
     var q0 = params.get("q"); if (q0 && document.querySelector("[data-grid]")) inp.value = q0;
+  }
+
+  /* ---------- home page: clear header over the hero until you scroll ---------- */
+  var hdr = document.querySelector(".site-header"), hero = document.querySelector(".hero-video");
+  if (hdr && hero && document.body.hasAttribute("data-home")) {
+    document.body.classList.add("mm-overlay");
+    hdr.querySelectorAll(".logo img").forEach(function(im){
+      var lt = im.cloneNode(); lt.classList.add("lt"); lt.alt = ""; lt.src = im.getAttribute("src").replace(/\.png$/, "-light.png"); im.parentNode.appendChild(lt);
+    });
+    var ann = document.querySelector(".announce");
+    var place = function(){
+      var h = ann ? ann.offsetHeight : 0;
+      hdr.style.setProperty("--hdr-top", Math.max(0, h - window.scrollY) + "px");
+      hdr.classList.toggle("over", !hdr.classList.contains("compact"));
+    };
+    window.addEventListener("scroll", place, {passive: true}); window.addEventListener("resize", place); place();
   }
 
   var swl = document.querySelector(".switch-store");
@@ -383,7 +397,7 @@ var MM = {
     var id = params.get("id"), x = findAny(id) || items[0], xs = storeOf(x.id), f = FABRICS[x.fabric] || {name: ""};
     $("[data-piece-name]").textContent = x.name;
     $("[data-piece-meta]").textContent = CATS[xs][x.cat] + (f.name ? " · " + f.name : "") + " · Made in " + (x.origin || "Morocco");
-    if (x.photos && x.photos[0]) $("[data-piece-photo]").outerHTML = '<img class="pimg" src="' + MM_IMG(x.photos[0]) + '" alt="' + esc(x.name) + '">'; else $("[data-piece-photo]").textContent = "Photo · " + x.name;
+    if (firstPhoto(x)) $("[data-piece-photo]").outerHTML = '<img class="pimg" src="' + MM_IMG(firstPhoto(x)) + '" alt="' + esc(x.name) + '">'; else $("[data-piece-photo]").textContent = "Photo · " + x.name;
     var care = {
       en: ["Hand wash cold with mild soap.", "Dry flat, out of direct sun.", "Iron on low, inside out.", "Store folded; heavy pieces stretch on a hanger."],
       ar: ["اغسل يدويًا بماء بارد وصابون لطيف.", "جففه مفرودًا بعيدًا عن الشمس المباشرة.", "اكوِه على حرارة منخفضة من الداخل.", "احفظه مطويًا، فالقطع الثقيلة تتمدد على العلاقة."],
