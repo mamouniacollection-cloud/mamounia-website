@@ -253,6 +253,21 @@ var MM = {
     syncFab();
   }
 
+  /* ---------- Our story: chapters reveal and the gold line draws as you read ---------- */
+  if (document.querySelector(".st-hero")) {
+    var stEls = document.querySelectorAll("[data-st]"), reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if ("IntersectionObserver" in window && !reduce) {
+      var sio = new IntersectionObserver(function(es){ es.forEach(function(e){ if (e.isIntersecting) { e.target.classList.add("in"); sio.unobserve(e.target); } }); }, {rootMargin: "0px 0px -12% 0px", threshold: 0.12});
+      stEls.forEach(function(el){ el.classList.add("st-rv"); sio.observe(el); });
+    }
+    var track = document.querySelector(".st-track"), line = document.querySelector(".st-line i"), hero = document.querySelector(".st-hero-bg");
+    var onScroll = function(){
+      if (track && line) { var r = track.getBoundingClientRect(), vh = window.innerHeight, pr = Math.max(0, Math.min(1, (vh * 0.6 - r.top) / r.height)); line.style.transform = "scaleY(" + pr + ")"; }
+      if (hero && !reduce) { var y = window.scrollY; if (y < window.innerHeight * 1.2) hero.style.transform = "translateY(" + (y * 0.25) + "px) scale(" + (1.06 - Math.min(y, 600) / 600 * 0.06) + ")"; }
+    };
+    window.addEventListener("scroll", onScroll, {passive: true}); window.addEventListener("resize", onScroll); onScroll();
+  }
+
   /* ---------- cart: order requests ---------- */
   var sum = $(".cart .summary");
   if (sum) {

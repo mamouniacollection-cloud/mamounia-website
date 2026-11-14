@@ -313,6 +313,18 @@
         if (thumbs) { thumbs.hidden = shown.length < 2; thumbs.innerHTML = shown.map(function(id, i){ return '<button type="button" class="thumb' + (i === 0 ? " on" : "") + '" data-i="' + i + '" aria-label="Photo ' + (i + 1) + '"><img src="' + MM_IMG(id) + '" alt="" loading="lazy"></button>'; }).join(""); }
       } else if (slot && !pp.querySelector("[data-main]")) slot.textContent = "Photo · " + p.name + (v ? " · " + v.name : "");
     }
+    // Hover to zoom: the photo enlarges and follows the mouse, so customers can see the weave and the stitching
+    var zoomBox = pp.querySelector(".gallery .main");
+    if (zoomBox && matchMedia("(hover: hover)").matches) {
+      zoomBox.classList.add("zoomable");
+      zoomBox.addEventListener("mousemove", function(e){
+        var m = zoomBox.querySelector("[data-main]"); if (!m) return;
+        var r = zoomBox.getBoundingClientRect(), x = (e.clientX - r.left) / r.width * 100, y = (e.clientY - r.top) / r.height * 100;
+        m.style.transformOrigin = Math.max(0, Math.min(100, x)) + "% " + Math.max(0, Math.min(100, y)) + "%";
+        zoomBox.classList.add("zooming");
+      });
+      zoomBox.addEventListener("mouseleave", function(){ zoomBox.classList.remove("zooming"); });
+    }
     if (thumbs) thumbs.addEventListener("click", function(e){ var t = e.target.closest(".thumb"); if (!t) return; var m = pp.querySelector("[data-main]"); if (m) m.src = MM_IMG(shown[+t.getAttribute("data-i")]); thumbs.querySelectorAll(".thumb").forEach(function(x){ x.classList.toggle("on", x === t); }); });
     gallery(curV);
     var f = FABRICS[p.fabric] || {name:"", note:""};
